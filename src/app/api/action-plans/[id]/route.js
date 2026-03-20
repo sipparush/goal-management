@@ -1,14 +1,18 @@
 import { dbQuery } from "@/lib/db";
 import { ok, fail } from "@/lib/api-response";
-import { isAdmin, isStaff, requireAuth } from "@/lib/auth-server";
+import { hasEffectivePermission, isAdmin, requireAuth } from "@/lib/auth-server";
+import { PERMISSIONS } from "@/lib/roles";
 
 function mapActionPlanRow(row) {
     return {
         id: row.id,
         ticketId: row.ticket_id,
+        phase: row.phase || "",
+        itemNo: row.item_no,
         action: row.action_text,
         status: row.status,
         duration: row.duration_minutes,
+        sortOrder: row.sort_order,
         start: row.exp_start,
         end: row.exp_end,
         remark: row.remark || "",
@@ -18,15 +22,21 @@ function mapActionPlanRow(row) {
 }
 
 async function canAccessRow(rowId, user) {
-    const result = isStaff(user)
+    const result = isAdmin(user)
         ? await dbQuery(
-              `SELECT apr.id
+            `SELECT apr.id
                FROM action_plan_rows apr
                JOIN tickets t ON t.id = apr.ticket_id
-               WHERE apr.id = $1 AND t.owner_user_id = $2`,
-              [rowId, user.id],
-          )
-        : await dbQuery("SELECT id FROM action_plan_rows WHERE id = $1", [rowId]);
+               WHERE apr.id = $1`,
+            [rowId],
+        )
+        : await dbQuery(
+            `SELECT apr.id
+               FROM action_plan_rows apr
+               JOIN tickets t ON t.id = apr.ticket_id
+               WHERE apr.id = $1 AND (t.owner_user_id = $2 OR t.assign_to_user_id = $2)`,
+            [rowId, user.id],
+        );
 
     return result.rowCount > 0;
 }
@@ -38,12 +48,15 @@ export async function PUT(request, { params }) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isStaff(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.actionPlansEdit)) {
             return fail("forbidden", 403);
         }
 
         const { id } = await params;
         const body = await request.json();
+        const phase = body.phase?.trim() || null;
+        const itemNoRaw = String(body.itemNo || "").trim();
+        const itemNo = itemNoRaw ? Number(itemNoRaw) : null;
         const action = body.action?.trim();
         const status = body.status?.trim();
         const duration = Number(body.duration || 0);
@@ -52,8 +65,8 @@ export async function PUT(request, { params }) {
             return fail("action and status are required", 400);
         }
 
-        if (!Number.isFinite(duration) || duration < 0) {
-            return fail("duration must be a non-negative number", 400);
+        if ((itemNoRaw && !Number.isInteger(itemNo)) || !Number.isFinite(duration) || duration < 0) {
+            return fail("itemNo and duration must be valid non-negative numbers", 400);
         }
 
         const accessAllowed = await canAccessRow(id, auth.user);
@@ -63,16 +76,20 @@ export async function PUT(request, { params }) {
 
         const result = await dbQuery(
             `UPDATE action_plan_rows
-             SET action_text = $1,
-                 status = $2,
-                 duration_minutes = $3,
-                 exp_start = $4,
-                 exp_end = $5,
-                 remark = $6,
+             SET phase = $1,
+                 item_no = $2,
+                 action_text = $3,
+                 status = $4,
+                 duration_minutes = $5,
+                 exp_start = $6,
+                 exp_end = $7,
+                 remark = $8,
                  updated_at = NOW()
-             WHERE id = $7
+             WHERE id = $9
              RETURNING *`,
             [
+                phase,
+                itemNo,
                 action,
                 status,
                 Math.floor(duration),
@@ -96,7 +113,7 @@ export async function DELETE(request, { params }) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isStaff(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.actionPlansDelete)) {
             return fail("forbidden", 403);
         }
 

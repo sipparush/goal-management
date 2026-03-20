@@ -1,14 +1,27 @@
 import { randomUUID } from "crypto";
 import { dbQuery } from "@/lib/db";
 import { ok, fail } from "@/lib/api-response";
-import { isAdmin, isStaff, requireAuth } from "@/lib/auth-server";
+import { hasEffectivePermission, isAdmin, requireAuth } from "@/lib/auth-server";
+import { PERMISSIONS } from "@/lib/roles";
 import { mapTicketRow } from "@/lib/server-records";
+
+async function resolveAssignee(assignToUserId) {
+    const result = await dbQuery("SELECT id, username FROM users WHERE id = $1 AND is_active = TRUE", [assignToUserId]);
+    if (result.rowCount === 0) {
+        return null;
+    }
+    return result.rows[0];
+}
 
 export async function GET(request) {
     try {
         const auth = await requireAuth(request);
         if (auth.error) {
             return auth.error;
+        }
+
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.ticketsView)) {
+            return fail("forbidden", 403);
         }
 
         const { searchParams } = new URL(request.url);
@@ -29,9 +42,9 @@ export async function GET(request) {
             clauses.push(`t.ability_id = $${params.length}`);
         }
 
-        if (isStaff(auth.user)) {
+        if (!isAdmin(auth.user)) {
             params.push(auth.user.id);
-            clauses.push(`t.owner_user_id = $${params.length}`);
+            clauses.push(`(t.owner_user_id = $${params.length} OR t.assign_to_user_id = $${params.length})`);
         }
 
         if (status === "in-time") {
@@ -66,12 +79,12 @@ export async function POST(request) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isStaff(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.ticketsAdd)) {
             return fail("forbidden", 403);
         }
 
         const body = await request.json();
-        const requiredFields = ["abilityId", "title", "target", "responsePerson", "startDate", "endDate"];
+        const requiredFields = ["abilityId", "title", "target", "assignToUserId", "startDate", "endDate"];
 
         for (const field of requiredFields) {
             if (!body[field]) {
@@ -79,30 +92,33 @@ export async function POST(request) {
             }
         }
 
-        if (isStaff(auth.user)) {
-            const ownAbilityCheck = await dbQuery("SELECT id FROM abilities WHERE id = $1 AND owner_user_id = $2", [
-                body.abilityId,
-                auth.user.id,
-            ]);
+        const ownAbilityCheck = isAdmin(auth.user)
+            ? await dbQuery("SELECT id FROM abilities WHERE id = $1", [body.abilityId])
+            : await dbQuery("SELECT id FROM abilities WHERE id = $1 AND (owner_user_id = $2 OR assign_to_user_id = $2)", [body.abilityId, auth.user.id]);
 
-            if (ownAbilityCheck.rowCount === 0) {
-                return fail("staff can create ticket only under own ability", 403);
-            }
+        if (ownAbilityCheck.rowCount === 0) {
+            return fail("staff can create ticket only under own ability", 403);
+        }
+
+        const assignee = await resolveAssignee(body.assignToUserId);
+        if (!assignee) {
+            return fail("assignToUserId not found or inactive", 400);
         }
 
         const result = await dbQuery(
-            `INSERT INTO tickets (id, ability_id, title, target, response_person, start_date, end_date, owner_user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `INSERT INTO tickets (id, ability_id, title, target, response_person, start_date, end_date, owner_user_id, assign_to_user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
             [
                 randomUUID(),
                 body.abilityId,
                 body.title.trim(),
                 body.target.trim(),
-                body.responsePerson.trim(),
+                assignee.username,
                 body.startDate,
                 body.endDate,
                 auth.user.id,
+                assignee.id,
             ],
         );
 

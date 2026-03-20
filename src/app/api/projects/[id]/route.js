@@ -1,7 +1,16 @@
 import { dbQuery } from "@/lib/db";
 import { ok, fail } from "@/lib/api-response";
-import { isAdmin, isStaff, requireAuth } from "@/lib/auth-server";
+import { hasEffectivePermission, isAdmin, requireAuth } from "@/lib/auth-server";
+import { PERMISSIONS } from "@/lib/roles";
 import { mapProjectRow } from "@/lib/server-records";
+
+async function resolveAssignee(assignToUserId) {
+    const result = await dbQuery("SELECT id, username FROM users WHERE id = $1 AND is_active = TRUE", [assignToUserId]);
+    if (result.rowCount === 0) {
+        return null;
+    }
+    return result.rows[0];
+}
 
 export async function PUT(request, { params }) {
     try {
@@ -10,13 +19,13 @@ export async function PUT(request, { params }) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isStaff(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.projectsEdit)) {
             return fail("forbidden", 403);
         }
 
         const { id } = await params;
         const body = await request.json();
-        const requiredFields = ["goalId", "name", "target", "responsePerson", "startDate", "endDate"];
+        const requiredFields = ["goalId", "name", "target", "assignToUserId", "startDate", "endDate"];
 
         for (const field of requiredFields) {
             if (!body[field]) {
@@ -24,22 +33,23 @@ export async function PUT(request, { params }) {
             }
         }
 
-        const whereClause = isStaff(auth.user)
-            ? "WHERE id = $7 AND owner_user_id = $8"
-            : "WHERE id = $7";
+        const projectCheck = isAdmin(auth.user)
+            ? await dbQuery("SELECT id FROM projects WHERE id = $1", [id])
+            : await dbQuery("SELECT id FROM projects WHERE id = $1 AND (owner_user_id = $2 OR assign_to_user_id = $2)", [id, auth.user.id]);
+        if (projectCheck.rowCount === 0) {
+            return fail("project not found", 404);
+        }
 
-        const queryParams = [
-            body.goalId,
-            body.name.trim(),
-            body.target.trim(),
-            body.responsePerson.trim(),
-            body.startDate,
-            body.endDate,
-            id,
-        ];
+        const goalCheck = isAdmin(auth.user)
+            ? await dbQuery("SELECT id FROM goals WHERE id = $1", [body.goalId])
+            : await dbQuery("SELECT id FROM goals WHERE id = $1 AND owner_user_id = $2", [body.goalId, auth.user.id]);
+        if (goalCheck.rowCount === 0) {
+            return fail("goal not found or not owned by user", 400);
+        }
 
-        if (isStaff(auth.user)) {
-            queryParams.push(auth.user.id);
+        const assignee = await resolveAssignee(body.assignToUserId);
+        if (!assignee) {
+            return fail("assignToUserId not found or inactive", 400);
         }
 
         const result = await dbQuery(
@@ -50,15 +60,12 @@ export async function PUT(request, { params }) {
            response_person = $4,
            start_date = $5,
            end_date = $6,
+           assign_to_user_id = $7,
            updated_at = NOW()
-       ${whereClause}
+       WHERE id = $8
        RETURNING *`,
-            queryParams,
+            [body.goalId, body.name.trim(), body.target.trim(), assignee.username, body.startDate, body.endDate, assignee.id, id],
         );
-
-        if (result.rowCount === 0) {
-            return fail("project not found", 404);
-        }
 
         return ok({ item: mapProjectRow(result.rows[0]) });
     } catch (error) {
@@ -73,18 +80,31 @@ export async function DELETE(_request, { params }) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isStaff(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.projectsDelete)) {
             return fail("forbidden", 403);
         }
 
         const { id } = await params;
-        const result = isStaff(auth.user)
-            ? await dbQuery("DELETE FROM projects WHERE id = $1 AND owner_user_id = $2", [id, auth.user.id])
-            : await dbQuery("DELETE FROM projects WHERE id = $1", [id]);
+        const projectResult = isAdmin(auth.user)
+            ? await dbQuery("SELECT id FROM projects WHERE id = $1", [id])
+            : await dbQuery("SELECT id FROM projects WHERE id = $1 AND (owner_user_id = $2 OR assign_to_user_id = $2)", [id, auth.user.id]);
 
-        if (result.rowCount === 0) {
+        if (projectResult.rowCount === 0) {
             return fail("project not found", 404);
         }
+
+        await dbQuery(
+            `UPDATE ability_files
+             SET ability_id = NULL,
+                 project_id = NULL,
+                 orphaned_at = COALESCE(orphaned_at, NOW())
+             WHERE project_id = $1
+               AND deleted_at IS NULL`,
+            [id],
+        );
+
+        await dbQuery("DELETE FROM projects WHERE id = $1", [id]);
+
 
         return ok({ success: true });
     } catch (error) {

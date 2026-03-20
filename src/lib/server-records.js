@@ -33,6 +33,7 @@ export function mapProjectRow(row) {
         goalId: row.goal_id,
         goalName: row.goal_name || "",
         ownerUserId: row.owner_user_id || "",
+        assignToUserId: row.assign_to_user_id || "",
         name: row.name,
         target: row.target,
         responsePerson: row.response_person,
@@ -51,9 +52,10 @@ export function mapAbilityRow(row) {
 
     return {
         id: row.id,
-        projectId: row.project_id,
+        projectId: row.project_id || "",
         projectName: row.project_name || "",
         ownerUserId: row.owner_user_id || "",
+        assignToUserId: row.assign_to_user_id || "",
         name: row.name,
         target: row.target,
         responsePerson: row.response_person,
@@ -75,6 +77,7 @@ export function mapTicketRow(row) {
         abilityId: row.ability_id,
         abilityName: row.ability_name || "",
         ownerUserId: row.owner_user_id || "",
+        assignToUserId: row.assign_to_user_id || "",
         title: row.title,
         target: row.target,
         responsePerson: row.response_person,

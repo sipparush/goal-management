@@ -7,21 +7,27 @@ import StatusPill from "@/components/StatusPill";
 import { useAppData } from "@/context/AppDataContext";
 import { requestJson } from "@/lib/client-api";
 import { downloadCsv } from "@/lib/csv";
+import { hasPermission, PERMISSIONS } from "@/lib/roles";
 
 const initialForm = {
     abilityId: "",
     title: "",
     target: "",
-    responsePerson: "",
+    assignToUserId: "",
     startDate: "",
     endDate: "",
 };
 
 export default function TicketManagementPage() {
     const { state } = useAppData();
+    const canAddTicket = hasPermission(state.user, PERMISSIONS.ticketsAdd);
+    const canEditTicket = hasPermission(state.user, PERMISSIONS.ticketsEdit);
+    const canDeleteTicket = hasPermission(state.user, PERMISSIONS.ticketsDelete);
+    const canViewActionPlans = hasPermission(state.user, PERMISSIONS.actionPlansView);
     const [form, setForm] = useState(initialForm);
     const [tickets, setTickets] = useState([]);
     const [abilities, setAbilities] = useState([]);
+    const [users, setUsers] = useState([]);
     const [editingId, setEditingId] = useState("");
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -37,6 +43,7 @@ export default function TicketManagementPage() {
         try {
             const data = await requestJson("/api/bootstrap");
             setAbilities(data.abilities || []);
+            setUsers(data.users || []);
         } catch (loadError) {
             setError(loadError.message);
         }
@@ -84,11 +91,21 @@ export default function TicketManagementPage() {
     const onSubmit = async (event) => {
         event.preventDefault();
 
+        if (editingId && !canEditTicket) {
+            setError("forbidden");
+            return;
+        }
+
+        if (!editingId && !canAddTicket) {
+            setError("forbidden");
+            return;
+        }
+
         if (
             !form.abilityId ||
             !form.title ||
             !form.target ||
-            !form.responsePerson ||
+            !form.assignToUserId ||
             !form.startDate ||
             !form.endDate
         ) {
@@ -118,18 +135,27 @@ export default function TicketManagementPage() {
     };
 
     const onEdit = (ticket) => {
+        if (!canEditTicket) {
+            return;
+        }
+
         setEditingId(ticket.id);
         setForm({
             abilityId: ticket.abilityId,
             title: ticket.title,
             target: ticket.target,
-            responsePerson: ticket.responsePerson,
+            assignToUserId: ticket.assignToUserId || "",
             startDate: ticket.startDate,
             endDate: ticket.endDate,
         });
     };
 
     const onDelete = async (id) => {
+        if (!canDeleteTicket) {
+            setError("forbidden");
+            return;
+        }
+
         try {
             setError("");
             await requestJson(`/api/tickets/${id}`, { method: "DELETE" });
@@ -164,47 +190,56 @@ export default function TicketManagementPage() {
 
                 {error ? <p className="notice error">{error}</p> : null}
 
-                <form className="form-grid" onSubmit={onSubmit}>
-                    <label>
-                        Ability
-                        <select name="abilityId" value={form.abilityId} onChange={onChange} required>
-                            <option value="">Select ability</option>
-                            {abilities.map((ability) => (
-                                <option key={ability.id} value={ability.id}>
-                                    {ability.name} ({ability.target})
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label>
-                        Implement Ticket
-                        <input name="title" value={form.title} onChange={onChange} required />
-                    </label>
-                    <label>
-                        Ticket Target
-                        <input name="target" value={form.target} onChange={onChange} required />
-                    </label>
-                    <label>
-                        Response Person
-                        <input name="responsePerson" value={form.responsePerson} onChange={onChange} required />
-                    </label>
-                    <label>
-                        Start Date
-                        <input type="date" name="startDate" value={form.startDate} onChange={onChange} required />
-                    </label>
-                    <label>
-                        End Date
-                        <input type="date" name="endDate" value={form.endDate} onChange={onChange} required />
-                    </label>
-                    <button type="submit" disabled={abilities.length === 0}>
-                        {editingId ? "Update Ticket" : "Add Ticket"}
-                    </button>
-                    {editingId ? (
-                        <button type="button" className="btn-secondary" onClick={resetForm}>
-                            Cancel Edit
+                {canAddTicket || canEditTicket ? (
+                    <form className="form-grid" onSubmit={onSubmit}>
+                        <label>
+                            Ability
+                            <select name="abilityId" value={form.abilityId} onChange={onChange} required>
+                                <option value="">Select ability</option>
+                                {abilities.map((ability) => (
+                                    <option key={ability.id} value={ability.id}>
+                                        {ability.name} ({ability.target})
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label>
+                            Implement Ticket
+                            <input name="title" value={form.title} onChange={onChange} required />
+                        </label>
+                        <label>
+                            Ticket Target
+                            <input name="target" value={form.target} onChange={onChange} required />
+                        </label>
+                        <label>
+                            Assign To (Response Person)
+                            <select name="assignToUserId" value={form.assignToUserId} onChange={onChange} required>
+                                <option value="">Select user</option>
+                                {users.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.username} ({user.role})
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label>
+                            Start Date
+                            <input type="date" name="startDate" value={form.startDate} onChange={onChange} required />
+                        </label>
+                        <label>
+                            End Date
+                            <input type="date" name="endDate" value={form.endDate} onChange={onChange} required />
+                        </label>
+                        <button type="submit" disabled={abilities.length === 0}>
+                            {editingId ? "Update Ticket" : "Add Ticket"}
                         </button>
-                    ) : null}
-                </form>
+                        {editingId ? (
+                            <button type="button" className="btn-secondary" onClick={resetForm}>
+                                Cancel Edit
+                            </button>
+                        ) : null}
+                    </form>
+                ) : null}
 
                 <section className="toolbar">
                     <label>
@@ -278,18 +313,24 @@ export default function TicketManagementPage() {
                                         <td>{ticket.responsePerson}</td>
                                         <td>
                                             <div className="inline-actions">
-                                                <Link
-                                                    href={`/action-plan?ticketId=${ticket.id}`}
-                                                    className="btn-secondary"
-                                                >
-                                                    Edit Action
-                                                </Link>
-                                                <button type="button" className="btn-secondary" onClick={() => onEdit(ticket)}>
-                                                    Edit
-                                                </button>
-                                                <button type="button" className="btn-danger" onClick={() => onDelete(ticket.id)}>
-                                                    Delete
-                                                </button>
+                                                {canViewActionPlans ? (
+                                                    <Link
+                                                        href={`/action-plan?ticketId=${ticket.id}`}
+                                                        className="btn-secondary"
+                                                    >
+                                                        Edit Action
+                                                    </Link>
+                                                ) : null}
+                                                {canEditTicket ? (
+                                                    <button type="button" className="btn-secondary" onClick={() => onEdit(ticket)}>
+                                                        Edit
+                                                    </button>
+                                                ) : null}
+                                                {canDeleteTicket ? (
+                                                    <button type="button" className="btn-danger" onClick={() => onDelete(ticket.id)}>
+                                                        Delete
+                                                    </button>
+                                                ) : null}
                                             </div>
                                         </td>
                                     </tr>

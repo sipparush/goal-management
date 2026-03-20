@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { dbQuery } from "@/lib/db";
-import { ROLE_LABELS, ROLES } from "@/lib/roles";
+import { PERMISSIONS, ROLE_LABELS, ROLES } from "@/lib/roles";
 import { verifyPassword } from "@/lib/password";
 
 export const SESSION_COOKIE = "pm_session";
@@ -25,12 +25,55 @@ function shapeUser(row) {
         return null;
     }
 
+    const roles = Array.isArray(row.roles) && row.roles.length > 0 ? row.roles : [row.role].filter(Boolean);
+    const effectivePermissions = Array.isArray(row.effectivePermissions) ? row.effectivePermissions : [];
+    const primaryRole = roles[0] || "";
+
     return {
         id: row.id,
         username: row.username,
-        role: row.role,
-        roleLabel: ROLE_LABELS[row.role] || row.role,
+        role: primaryRole,
+        roleLabel: ROLE_LABELS[primaryRole] || primaryRole,
+        roles,
+        roleLabels: roles.map((roleName) => ROLE_LABELS[roleName] || roleName),
+        effectivePermissions,
     };
+}
+
+async function getUserRoles(userId, fallbackRole) {
+    const roleResult = await dbQuery(
+        `SELECT ur.role_name
+         FROM user_roles ur
+         WHERE ur.user_id = $1
+         ORDER BY ur.role_name ASC`,
+        [userId],
+    );
+
+    if (roleResult.rowCount > 0) {
+        return roleResult.rows.map((row) => row.role_name);
+    }
+
+    return fallbackRole ? [fallbackRole] : [];
+}
+
+async function getEffectivePermissions(roleNames) {
+    if (!Array.isArray(roleNames) || roleNames.length === 0) {
+        return [];
+    }
+
+    if (roleNames.includes(ROLES.admin)) {
+        return ["*"];
+    }
+
+    const permissionResult = await dbQuery(
+        `SELECT DISTINCT rp.permission_key
+         FROM role_permissions rp
+         WHERE rp.role_name = ANY($1::TEXT[])
+         ORDER BY rp.permission_key ASC`,
+        [roleNames],
+    );
+
+    return permissionResult.rows.map((row) => row.permission_key);
 }
 
 export async function getAuthUser(request) {
@@ -43,7 +86,7 @@ export async function getAuthUser(request) {
         `SELECT u.id, u.username, u.role
      FROM sessions s
      JOIN users u ON u.id = s.user_id
-     WHERE s.token = $1`,
+     WHERE s.token = $1 AND u.is_active = TRUE`,
         [token],
     );
 
@@ -51,7 +94,11 @@ export async function getAuthUser(request) {
         return null;
     }
 
-    return shapeUser(result.rows[0]);
+    const baseRow = result.rows[0];
+    const roles = await getUserRoles(baseRow.id, baseRow.role);
+    const effectivePermissions = await getEffectivePermissions(roles);
+
+    return shapeUser({ ...baseRow, roles, effectivePermissions });
 }
 
 export async function requireAuth(request) {
@@ -68,15 +115,51 @@ export async function requireAuth(request) {
 }
 
 export function isAdmin(user) {
-    return user?.role === ROLES.admin;
+    const roles = Array.isArray(user?.roles) ? user.roles : [user?.role].filter(Boolean);
+    return roles.includes(ROLES.admin);
 }
 
 export function isManager(user) {
-    return user?.role === ROLES.manager;
+    const roles = Array.isArray(user?.roles) ? user.roles : [user?.role].filter(Boolean);
+    return roles.includes(ROLES.manager);
 }
 
 export function isStaff(user) {
-    return user?.role === ROLES.staff;
+    const roles = Array.isArray(user?.roles) ? user.roles : [user?.role].filter(Boolean);
+    return roles.includes(ROLES.staff);
+}
+
+export function ownsItem(user, ownerUserId) {
+    return user?.id === ownerUserId;
+}
+
+export function hasEffectivePermission(user, permissionKey) {
+    if (isAdmin(user)) {
+        return true;
+    }
+
+    const permissions = Array.isArray(user?.effectivePermissions) ? user.effectivePermissions : [];
+    return permissions.includes("*") || permissions.includes(permissionKey);
+}
+
+export function canManageUsers(user) {
+    return hasEffectivePermission(user, PERMISSIONS.usersEdit);
+}
+
+export function canViewUsers(user) {
+    return hasEffectivePermission(user, PERMISSIONS.usersView);
+}
+
+export function canAddUsers(user) {
+    return hasEffectivePermission(user, PERMISSIONS.usersAdd);
+}
+
+export function canEditUsers(user) {
+    return hasEffectivePermission(user, PERMISSIONS.usersEdit);
+}
+
+export function canDeleteUsers(user) {
+    return hasEffectivePermission(user, PERMISSIONS.usersDelete);
 }
 
 export function createSessionResponse(user) {
@@ -103,7 +186,10 @@ export function clearSessionCookie(response) {
 }
 
 export async function authenticateUser(username, password) {
-    const result = await dbQuery("SELECT id, username, role, password_hash FROM users WHERE username = $1", [username]);
+    const result = await dbQuery(
+        "SELECT id, username, role, password_hash, is_active FROM users WHERE username = $1",
+        [username],
+    );
 
     if (result.rowCount === 0) {
         return null;
@@ -111,6 +197,10 @@ export async function authenticateUser(username, password) {
 
     const user = result.rows[0];
     if (!verifyPassword(password, user.password_hash)) {
+        return null;
+    }
+
+    if (!user.is_active) {
         return null;
     }
 

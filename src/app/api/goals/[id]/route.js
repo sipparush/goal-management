@@ -1,7 +1,35 @@
 import { dbQuery } from "@/lib/db";
 import { ok, fail } from "@/lib/api-response";
-import { isAdmin, isManager, requireAuth } from "@/lib/auth-server";
+import { hasEffectivePermission, isAdmin, requireAuth } from "@/lib/auth-server";
+import { PERMISSIONS } from "@/lib/roles";
 import { mapGoalRow } from "@/lib/server-records";
+
+export async function GET(request, { params }) {
+    try {
+        const auth = await requireAuth(request);
+        if (auth.error) {
+            return auth.error;
+        }
+
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.goalsView)) {
+            return fail("forbidden", 403);
+        }
+
+        const { id } = await params;
+        const goalQuery = isAdmin(auth.user)
+            ? { text: "SELECT * FROM goals WHERE id = $1", values: [id] }
+            : { text: "SELECT * FROM goals WHERE id = $1 AND owner_user_id = $2", values: [id, auth.user.id] };
+        const result = await dbQuery(goalQuery.text, goalQuery.values);
+
+        if (result.rowCount === 0) {
+            return fail("goal not found", 404);
+        }
+
+        return ok({ item: mapGoalRow(result.rows[0]) });
+    } catch (error) {
+        return fail(`Failed to fetch goal: ${error.message}`, 500);
+    }
+}
 
 export async function PUT(request, { params }) {
     try {
@@ -10,7 +38,7 @@ export async function PUT(request, { params }) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isManager(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.goalsEdit)) {
             return fail("forbidden", 403);
         }
 
@@ -22,6 +50,13 @@ export async function PUT(request, { params }) {
 
         if (!name || !target) {
             return fail("name and target are required", 400);
+        }
+
+        const goalCheck = isAdmin(auth.user)
+            ? await dbQuery("SELECT id FROM goals WHERE id = $1", [id])
+            : await dbQuery("SELECT id FROM goals WHERE id = $1 AND owner_user_id = $2", [id, auth.user.id]);
+        if (goalCheck.rowCount === 0) {
+            return fail("goal not found", 404);
         }
 
         const result = await dbQuery(
@@ -36,10 +71,6 @@ export async function PUT(request, { params }) {
             [name, target, body.currentTarget?.trim() || null, body.expect?.trim() || null, id],
         );
 
-        if (result.rowCount === 0) {
-            return fail("goal not found", 404);
-        }
-
         return ok({ item: mapGoalRow(result.rows[0]) });
     } catch (error) {
         return fail(`Failed to update goal: ${error.message}`, 500);
@@ -53,16 +84,20 @@ export async function DELETE(_request, { params }) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isManager(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.goalsDelete)) {
             return fail("forbidden", 403);
         }
 
         const { id } = await params;
-        const result = await dbQuery("DELETE FROM goals WHERE id = $1", [id]);
 
-        if (result.rowCount === 0) {
+        const goalCheck = isAdmin(auth.user)
+            ? await dbQuery("SELECT id FROM goals WHERE id = $1", [id])
+            : await dbQuery("SELECT id FROM goals WHERE id = $1 AND owner_user_id = $2", [id, auth.user.id]);
+        if (goalCheck.rowCount === 0) {
             return fail("goal not found", 404);
         }
+
+        await dbQuery("DELETE FROM goals WHERE id = $1", [id]);
 
         return ok({ success: true });
     } catch (error) {

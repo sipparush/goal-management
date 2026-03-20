@@ -5,6 +5,7 @@ import RoleGate from "@/components/RoleGate";
 import { useAppData } from "@/context/AppDataContext";
 import { requestJson } from "@/lib/client-api";
 import { downloadCsv } from "@/lib/csv";
+import { hasPermission, PERMISSIONS } from "@/lib/roles";
 
 const initialForm = {
     name: "",
@@ -15,6 +16,9 @@ const initialForm = {
 
 export default function GoalManagementPage() {
     const { state } = useAppData();
+    const canAddGoal = hasPermission(state.user, PERMISSIONS.goalsAdd);
+    const canEditGoal = hasPermission(state.user, PERMISSIONS.goalsEdit);
+    const canDeleteGoal = hasPermission(state.user, PERMISSIONS.goalsDelete);
     const [form, setForm] = useState(initialForm);
     const [goals, setGoals] = useState([]);
     const [search, setSearch] = useState("");
@@ -65,6 +69,16 @@ export default function GoalManagementPage() {
     const onSubmit = async (event) => {
         event.preventDefault();
 
+        if (editingId && !canEditGoal) {
+            setError("forbidden");
+            return;
+        }
+
+        if (!editingId && !canAddGoal) {
+            setError("forbidden");
+            return;
+        }
+
         if (!form.name || !form.target) {
             return;
         }
@@ -92,6 +106,10 @@ export default function GoalManagementPage() {
     };
 
     const onEdit = (goal) => {
+        if (!canEditGoal) {
+            return;
+        }
+
         setEditingId(goal.id);
         setForm({
             name: goal.name,
@@ -102,6 +120,11 @@ export default function GoalManagementPage() {
     };
 
     const onDelete = async (id) => {
+        if (!canDeleteGoal) {
+            setError("forbidden");
+            return;
+        }
+
         try {
             setError("");
             await requestJson(`/api/goals/${id}`, { method: "DELETE" });
@@ -131,30 +154,32 @@ export default function GoalManagementPage() {
 
                 {error ? <p className="notice error">{error}</p> : null}
 
-                <form className="form-grid" onSubmit={onSubmit}>
-                    <label>
-                        Goal Name
-                        <input name="name" value={form.name} onChange={onChange} required />
-                    </label>
-                    <label>
-                        Target
-                        <input name="target" value={form.target} onChange={onChange} required />
-                    </label>
-                    <label>
-                        Current Target
-                        <input name="currentTarget" value={form.currentTarget} onChange={onChange} />
-                    </label>
-                    <label>
-                        Expect
-                        <textarea name="expect" value={form.expect} onChange={onChange} rows={3} />
-                    </label>
-                    <button type="submit">{editingId ? "Update Goal" : "Add Goal"}</button>
-                    {editingId ? (
-                        <button type="button" className="btn-secondary" onClick={resetForm}>
-                            Cancel Edit
-                        </button>
-                    ) : null}
-                </form>
+                {canAddGoal || canEditGoal ? (
+                    <form className="form-grid" onSubmit={onSubmit}>
+                        <label>
+                            Goal Name
+                            <input name="name" value={form.name} onChange={onChange} required />
+                        </label>
+                        <label>
+                            Target
+                            <input name="target" value={form.target} onChange={onChange} required />
+                        </label>
+                        <label>
+                            Current Target
+                            <input name="currentTarget" value={form.currentTarget} onChange={onChange} />
+                        </label>
+                        <label>
+                            Expect
+                            <textarea name="expect" value={form.expect} onChange={onChange} rows={3} />
+                        </label>
+                        <button type="submit">{editingId ? "Update Goal" : "Add Goal"}</button>
+                        {editingId ? (
+                            <button type="button" className="btn-secondary" onClick={resetForm}>
+                                Cancel Edit
+                            </button>
+                        ) : null}
+                    </form>
+                ) : null}
 
                 <section className="toolbar">
                     <label>
@@ -207,12 +232,16 @@ export default function GoalManagementPage() {
                                         <td>{goal.expect || "-"}</td>
                                         <td>
                                             <div className="inline-actions">
-                                                <button type="button" className="btn-secondary" onClick={() => onEdit(goal)}>
-                                                    Edit
-                                                </button>
-                                                <button type="button" className="btn-danger" onClick={() => onDelete(goal.id)}>
-                                                    Delete
-                                                </button>
+                                                {canEditGoal ? (
+                                                    <button type="button" className="btn-secondary" onClick={() => onEdit(goal)}>
+                                                        Edit
+                                                    </button>
+                                                ) : null}
+                                                {canDeleteGoal ? (
+                                                    <button type="button" className="btn-danger" onClick={() => onDelete(goal.id)}>
+                                                        Delete
+                                                    </button>
+                                                ) : null}
                                             </div>
                                         </td>
                                     </tr>

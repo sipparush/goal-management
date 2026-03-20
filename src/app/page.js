@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import RoleGate from "@/components/RoleGate";
 import StatusPill from "@/components/StatusPill";
 import { useAppData } from "@/context/AppDataContext";
@@ -10,8 +10,7 @@ export default function HomePage() {
     const { state } = useAppData();
     const [goals, setGoals] = useState([]);
     const [projects, setProjects] = useState([]);
-    const [abilities, setAbilities] = useState([]);
-    const [tickets, setTickets] = useState([]);
+    const [summary, setSummary] = useState({ goals: 0, projects: 0, abilities: 0, tickets: 0 });
     const [error, setError] = useState("");
 
     useEffect(() => {
@@ -22,15 +21,10 @@ export default function HomePage() {
         async function load() {
             try {
                 setError("");
-                const [bootstrap, ticketData] = await Promise.all([
-                    requestJson("/api/bootstrap"),
-                    requestJson("/api/tickets"),
-                ]);
-
-                setGoals(bootstrap.goals || []);
-                setProjects(bootstrap.projects || []);
-                setAbilities(bootstrap.abilities || []);
-                setTickets(ticketData.items || []);
+                const data = await requestJson("/api/overview");
+                setGoals(data.goals || []);
+                setProjects(data.projects || []);
+                setSummary(data.summary || { goals: 0, projects: 0, abilities: 0, tickets: 0 });
             } catch (loadError) {
                 setError(loadError.message);
             }
@@ -38,16 +32,6 @@ export default function HomePage() {
 
         load();
     }, [state.user]);
-
-    const summary = useMemo(
-        () => ({
-            goals: goals.length,
-            projects: projects.length,
-            abilities: abilities.length,
-            tickets: tickets.length,
-        }),
-        [goals, projects, abilities, tickets],
-    );
 
     return (
         <RoleGate path="/">

@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { dbQuery } from "@/lib/db";
 import { ok, fail } from "@/lib/api-response";
-import { isAdmin, isManager, requireAuth } from "@/lib/auth-server";
+import { hasEffectivePermission, isAdmin, requireAuth } from "@/lib/auth-server";
+import { PERMISSIONS } from "@/lib/roles";
 import { mapGoalRow } from "@/lib/server-records";
 
 export async function GET(request) {
@@ -11,6 +12,10 @@ export async function GET(request) {
             return auth.error;
         }
 
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.goalsView)) {
+            return fail("forbidden", 403);
+        }
+
         const { searchParams } = new URL(request.url);
         const search = searchParams.get("search")?.trim() || "";
         const currentTarget = searchParams.get("currentTarget") || "all";
@@ -18,21 +23,26 @@ export async function GET(request) {
         const clauses = [];
         const params = [];
 
+        if (!isAdmin(auth.user)) {
+            params.push(auth.user.id);
+            clauses.push(`g.owner_user_id = $${params.length}`);
+        }
+
         if (search) {
             params.push(`%${search}%`);
-            clauses.push(`(name ILIKE $${params.length} OR target ILIKE $${params.length} OR COALESCE(expect, '') ILIKE $${params.length})`);
+            clauses.push(`(g.name ILIKE $${params.length} OR g.target ILIKE $${params.length} OR COALESCE(g.expect, '') ILIKE $${params.length})`);
         }
 
         if (currentTarget === "with") {
-            clauses.push("COALESCE(current_target, '') <> ''");
+            clauses.push("COALESCE(g.current_target, '') <> ''");
         }
 
         if (currentTarget === "without") {
-            clauses.push("COALESCE(current_target, '') = ''");
+            clauses.push("COALESCE(g.current_target, '') = ''");
         }
 
         const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
-        const result = await dbQuery(`SELECT * FROM goals ${where} ORDER BY created_at DESC`, params);
+        const result = await dbQuery(`SELECT * FROM goals g ${where} ORDER BY g.created_at DESC`, params);
 
         return ok({ items: result.rows.map(mapGoalRow) });
     } catch (error) {
@@ -47,7 +57,7 @@ export async function POST(request) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isManager(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.goalsAdd)) {
             return fail("forbidden", 403);
         }
 
@@ -60,10 +70,10 @@ export async function POST(request) {
         }
 
         const result = await dbQuery(
-            `INSERT INTO goals (id, name, target, current_target, expect)
-       VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO goals (id, owner_user_id, name, target, current_target, expect)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-            [randomUUID(), name, target, body.currentTarget?.trim() || null, body.expect?.trim() || null],
+            [randomUUID(), auth.user.id, name, target, body.currentTarget?.trim() || null, body.expect?.trim() || null],
         );
 
         return ok({ item: mapGoalRow(result.rows[0]) }, 201);

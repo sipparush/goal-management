@@ -18,11 +18,13 @@ Workflow:
 - /start -> /bawork -> /sawork -> /devwork
 
 /bawork:
+- act as a senior business analyst.
 - Get request or read requirement.txt.
 - Analyze requirements.
 - Create requirement.md.
 
 /sawork:
+- act as a senior system analyst.
 - Read requirement.md.
 - Prepare frontend, backend, and QA artifacts.
 - Update frontend_tasks.md, backend_tasks.md, qa_tasks.md, and implement_plan.md.

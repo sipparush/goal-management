@@ -6,27 +6,35 @@ import StatusPill from "@/components/StatusPill";
 import { useAppData } from "@/context/AppDataContext";
 import { requestJson } from "@/lib/client-api";
 import { downloadCsv } from "@/lib/csv";
+import { hasPermission, PERMISSIONS } from "@/lib/roles";
 
 const initialForm = {
     goalId: "",
     name: "",
     target: "",
-    responsePerson: "",
+    assignToUserId: "",
     startDate: "",
     endDate: "",
 };
 
 export default function ProjectManagementPage() {
     const { state } = useAppData();
+    const canAddProject = hasPermission(state.user, PERMISSIONS.projectsAdd);
+    const canEditProject = hasPermission(state.user, PERMISSIONS.projectsEdit);
+    const canDeleteProject = hasPermission(state.user, PERMISSIONS.projectsDelete);
     const [form, setForm] = useState(initialForm);
     const [projects, setProjects] = useState([]);
     const [goals, setGoals] = useState([]);
+    const [users, setUsers] = useState([]);
     const [editingId, setEditingId] = useState("");
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [goalFilter, setGoalFilter] = useState("all");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [selectedProject, setSelectedProject] = useState(null);
+    const [projectFiles, setProjectFiles] = useState([]);
+    const [loadingFiles, setLoadingFiles] = useState(false);
 
     const loadLookup = useCallback(async () => {
         if (!state.user) {
@@ -36,6 +44,7 @@ export default function ProjectManagementPage() {
         try {
             const data = await requestJson("/api/bootstrap");
             setGoals(data.goals || []);
+            setUsers(data.users || []);
         } catch (loadError) {
             setError(loadError.message);
         }
@@ -63,6 +72,20 @@ export default function ProjectManagementPage() {
         }
     }, [search, statusFilter, goalFilter, state.user]);
 
+    const loadProjectFiles = useCallback(async (projectId) => {
+        setLoadingFiles(true);
+        try {
+            setError("");
+            const data = await requestJson(`/api/projects/${projectId}/files`);
+            setProjectFiles(data.items || []);
+        } catch (loadError) {
+            setError(loadError.message);
+            setProjectFiles([]);
+        } finally {
+            setLoadingFiles(false);
+        }
+    }, []);
+
     useEffect(() => {
         loadLookup();
     }, [loadLookup]);
@@ -83,7 +106,17 @@ export default function ProjectManagementPage() {
     const onSubmit = async (event) => {
         event.preventDefault();
 
-        if (!form.goalId || !form.name || !form.target || !form.responsePerson || !form.startDate || !form.endDate) {
+        if (editingId && !canEditProject) {
+            setError("forbidden");
+            return;
+        }
+
+        if (!editingId && !canAddProject) {
+            setError("forbidden");
+            return;
+        }
+
+        if (!form.goalId || !form.name || !form.target || !form.assignToUserId || !form.startDate || !form.endDate) {
             return;
         }
 
@@ -110,23 +143,36 @@ export default function ProjectManagementPage() {
     };
 
     const onEdit = (project) => {
+        if (!canEditProject) {
+            return;
+        }
+
         setEditingId(project.id);
         setForm({
             goalId: project.goalId,
             name: project.name,
             target: project.target,
-            responsePerson: project.responsePerson,
+            assignToUserId: project.assignToUserId || "",
             startDate: project.startDate,
             endDate: project.endDate,
         });
     };
 
     const onDelete = async (id) => {
+        if (!canDeleteProject) {
+            setError("forbidden");
+            return;
+        }
+
         try {
             setError("");
             await requestJson(`/api/projects/${id}`, { method: "DELETE" });
             if (editingId === id) {
                 resetForm();
+            }
+            if (selectedProject?.id === id) {
+                setSelectedProject(null);
+                setProjectFiles([]);
             }
             loadProjects();
             loadLookup();
@@ -149,6 +195,11 @@ export default function ProjectManagementPage() {
         downloadCsv("projects.csv", rows);
     };
 
+    const openFilePanel = async (project) => {
+        setSelectedProject(project);
+        await loadProjectFiles(project.id);
+    };
+
     return (
         <RoleGate path="/projects">
             <section className="stack">
@@ -156,47 +207,56 @@ export default function ProjectManagementPage() {
 
                 {error ? <p className="notice error">{error}</p> : null}
 
-                <form className="form-grid" onSubmit={onSubmit}>
-                    <label>
-                        Goal
-                        <select name="goalId" value={form.goalId} onChange={onChange} required>
-                            <option value="">Select goal</option>
-                            {goals.map((goal) => (
-                                <option key={goal.id} value={goal.id}>
-                                    {goal.name} ({goal.target})
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label>
-                        Project Name
-                        <input name="name" value={form.name} onChange={onChange} required />
-                    </label>
-                    <label>
-                        Project Target
-                        <input name="target" value={form.target} onChange={onChange} required />
-                    </label>
-                    <label>
-                        Response Person
-                        <input name="responsePerson" value={form.responsePerson} onChange={onChange} required />
-                    </label>
-                    <label>
-                        Start Date
-                        <input type="date" name="startDate" value={form.startDate} onChange={onChange} required />
-                    </label>
-                    <label>
-                        End Date
-                        <input type="date" name="endDate" value={form.endDate} onChange={onChange} required />
-                    </label>
-                    <button type="submit" disabled={goals.length === 0}>
-                        {editingId ? "Update Project" : "Add Project"}
-                    </button>
-                    {editingId ? (
-                        <button type="button" className="btn-secondary" onClick={resetForm}>
-                            Cancel Edit
+                {canAddProject || canEditProject ? (
+                    <form className="form-grid" onSubmit={onSubmit}>
+                        <label>
+                            Goal
+                            <select name="goalId" value={form.goalId} onChange={onChange} required>
+                                <option value="">Select goal</option>
+                                {goals.map((goal) => (
+                                    <option key={goal.id} value={goal.id}>
+                                        {goal.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label>
+                            Project Name
+                            <input name="name" value={form.name} onChange={onChange} required />
+                        </label>
+                        <label>
+                            Project Target
+                            <input name="target" value={form.target} onChange={onChange} required />
+                        </label>
+                        <label>
+                            Assign To (Response Person)
+                            <select name="assignToUserId" value={form.assignToUserId} onChange={onChange} required>
+                                <option value="">Select user</option>
+                                {users.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.username} ({user.role})
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label>
+                            Start Date
+                            <input type="date" name="startDate" value={form.startDate} onChange={onChange} required />
+                        </label>
+                        <label>
+                            End Date
+                            <input type="date" name="endDate" value={form.endDate} onChange={onChange} required />
+                        </label>
+                        <button type="submit" disabled={goals.length === 0}>
+                            {editingId ? "Update Project" : "Add Project"}
                         </button>
-                    ) : null}
-                </form>
+                        {editingId ? (
+                            <button type="button" className="btn-secondary" onClick={resetForm}>
+                                Cancel Edit
+                            </button>
+                        ) : null}
+                    </form>
+                ) : null}
 
                 <section className="toolbar">
                     <label>
@@ -230,6 +290,54 @@ export default function ProjectManagementPage() {
                         Export CSV
                     </button>
                 </section>
+
+                {selectedProject ? (
+                    <section className="stack">
+                        <h3>Project Files: {selectedProject.name}</h3>
+                        <div className="toolbar">
+                            <button type="button" className="btn-secondary" onClick={() => loadProjectFiles(selectedProject.id)}>
+                                Refresh List Files
+                            </button>
+                            <button type="button" className="btn-secondary" onClick={() => setSelectedProject(null)}>
+                                Close
+                            </button>
+                        </div>
+                        <div className="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Ability</th>
+                                        <th>File Name</th>
+                                        <th>Size (bytes)</th>
+                                        <th>Uploaded At</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {loadingFiles ? (
+                                        <tr>
+                                            <td colSpan={4}>กำลังโหลดรายการไฟล์...</td>
+                                        </tr>
+                                    ) : projectFiles.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4}>ยังไม่มีไฟล์ที่เกี่ยวข้องกับโปรเจกต์นี้</td>
+                                        </tr>
+                                    ) : (
+                                        projectFiles.map((file) => (
+                                            <tr key={file.id}>
+                                                <td>{file.abilityName || "-"}</td>
+                                                <td>
+                                                    <a href={file.downloadUrl}>{file.originalName}</a>
+                                                </td>
+                                                <td>{file.sizeBytes}</td>
+                                                <td>{new Date(file.createdAt).toLocaleString("th-TH")}</td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                ) : null}
 
                 <section className="table-wrap">
                     <table>
@@ -270,11 +378,18 @@ export default function ProjectManagementPage() {
                                         <td>{project.responsePerson}</td>
                                         <td>
                                             <div className="inline-actions">
-                                                <button type="button" className="btn-secondary" onClick={() => onEdit(project)}>
-                                                    Edit
-                                                </button>
-                                                <button type="button" className="btn-danger" onClick={() => onDelete(project.id)}>
-                                                    Delete
+                                                {canEditProject ? (
+                                                    <button type="button" className="btn-secondary" onClick={() => onEdit(project)}>
+                                                        Edit
+                                                    </button>
+                                                ) : null}
+                                                {canDeleteProject ? (
+                                                    <button type="button" className="btn-danger" onClick={() => onDelete(project.id)}>
+                                                        Delete
+                                                    </button>
+                                                ) : null}
+                                                <button type="button" className="btn-secondary" onClick={() => openFilePanel(project)}>
+                                                    List Files
                                                 </button>
                                             </div>
                                         </td>

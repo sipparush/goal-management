@@ -3,17 +3,20 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS, ROLE_LABELS, ROLE_PAGE_ACCESS } from "@/lib/roles";
+import { canAccessPath, getRoleLabel, NAV_ITEMS } from "@/lib/roles";
 import { useAppData } from "@/context/AppDataContext";
 
-function canOpen(role, href) {
-    return ROLE_PAGE_ACCESS[role]?.includes(href);
+function canOpen(user, href) {
+    return canAccessPath(user, href);
 }
 
 export default function AppShell({ children }) {
     const pathname = usePathname();
     const router = useRouter();
     const { state, logout, loadingUser } = useAppData();
+    const roleText = Array.isArray(state.roles) && state.roles.length > 0
+        ? state.roles.map((role) => getRoleLabel(role)).join(", ")
+        : "-";
 
     const onLogout = async () => {
         await logout();
@@ -34,7 +37,7 @@ export default function AppShell({ children }) {
                 <div className="role-box">
                     <span>User</span>
                     <strong>{loadingUser ? "Loading..." : state.user?.username || "Guest"}</strong>
-                    <span>Role: {ROLE_LABELS[state.selectedRole] || "-"}</span>
+                    <span>Roles: {roleText}</span>
                     {state.user ? (
                         <button type="button" className="btn-secondary" onClick={onLogout}>
                             Logout
@@ -44,7 +47,7 @@ export default function AppShell({ children }) {
             </header>
 
             <nav className="nav-grid" aria-label="Main navigation">
-                {NAV_ITEMS.filter((item) => canOpen(state.selectedRole, item.href)).map((item) => (
+                {NAV_ITEMS.filter((item) => canOpen(state.user, item.href)).map((item) => (
                     <Link
                         key={item.href}
                         href={item.href}

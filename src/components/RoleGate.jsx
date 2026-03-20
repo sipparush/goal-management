@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ROLE_LABELS, ROLE_PAGE_ACCESS } from "@/lib/roles";
+import { canAccessPath, getRoleLabel } from "@/lib/roles";
 import { useAppData } from "@/context/AppDataContext";
 
 export default function RoleGate({ path, children }) {
@@ -27,7 +27,7 @@ export default function RoleGate({ path, children }) {
         );
     }
 
-    const allowed = ROLE_PAGE_ACCESS[state.selectedRole]?.includes(path);
+    const allowed = canAccessPath(state.user, path);
 
     if (allowed) {
         return children;
@@ -35,7 +35,7 @@ export default function RoleGate({ path, children }) {
 
     return (
         <section className="empty-state">
-            <h2>Access limited for {ROLE_LABELS[state.selectedRole]}</h2>
+            <h2>Access limited for {(state.roles || []).map((role) => getRoleLabel(role)).join(", ") || "No Role"}</h2>
             <p>Role นี้ไม่สามารถเข้าหน้านี้ได้ กรุณาเปลี่ยน role เพื่อเข้าถึงข้อมูลที่ต้องการ</p>
         </section>
     );

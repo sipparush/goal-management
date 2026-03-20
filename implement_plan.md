@@ -1,3 +1,25 @@
+22. /sawork: UX Redesign & Dashboard Modernization
+- [ ] วิเคราะห์ข้อเสนอ BA และจัดทำ UI/Component structure (skeleton, card, grid, role-aware)
+- [ ] ออกแบบ staged loading, async state, skeleton loader, dashboard summary cards
+- [ ] วางแผน layout system (AppShell, Sidebar, Topbar, Main grid)
+- [ ] กำหนด role-aware dashboard (Admin/Manager/Dev)
+- [ ] วาง responsive breakpoints, touch target, mobile UX
+- [ ] เสนอ UX KPI & validation method
+- [ ] แตกงานลง frontend_tasks.md, backend_tasks.md, qa_tasks.md
+- [ ] สรุปแผน implement_plan.md พร้อม checklist รออนุมัติ
+### SA/UX Requirement: Inline Edit Action Plan Rows
+- ผู้ใช้สามารถแก้ไขข้อมูลแต่ละแถว (Action Plan Row) ได้ทันทีในตาราง โดยไม่ต้องย้ายข้อมูลไปฟอร์มด้านบน
+- เมื่อกดปุ่ม Edit ในแถว จะเปลี่ยน cell ของแถวนั้นเป็น input field (text, number, datetime, textarea) ตามชนิดข้อมูล
+- มีปุ่ม Save/Cancel ในแถวนั้น (แทนที่ Edit/Delete ชั่วคราว)
+- เมื่อ Save จะ validate ข้อมูลและส่ง API PUT เพื่ออัปเดตแถวเดียว, เมื่อ Cancel จะคืนค่าเดิม
+- ขณะกำลังแก้ไขแถวอื่น ปุ่ม Edit ของแถวอื่นจะถูก disable หรือซ่อน
+- UX: กด Enter ใน input (ยกเว้น textarea) = Save, กด Esc = Cancel
+- รองรับสิทธิ์ canEditActionPlan เท่านั้น
+21. /sawork: ปรับ Action Plan Rows ให้แก้ไขข้อมูลแต่ละแถวแบบ inline (editable in its line)
+- [ ] บันทึกคำขอและเพิ่มลงแผน
+- [ ] วิเคราะห์ requirement และแนวทาง inline edit
+- [ ] ออกแบบ/ปรับโค้ด Action Plan Rows ให้แก้ไข inline
+- [ ] ทดสอบและอัปเดตเอกสารสถานะ
 # Implement Plan
 
 ## Request List
@@ -25,9 +47,6 @@
 - ปุ่มต้องพาไปหน้า Action Plan ตามดีไซน์อ้างอิง
 - ทำ /qawork และสรุป UAT checklist ให้ครบ
 6. /bawork: ปรับหน้า Action Plan ให้แก้ไขและลบข้อมูลแบบรายแถว (row-level edit/delete) ตามภาพอ้างอิง
-- หน้า Action Plan ต้องแสดงข้อมูลในรูปแบบตารางแถว
-- มีปุ่ม Edit และ Delete ในแต่ละแถวข้อมูล
-- ปรับ flow ให้ใช้งานง่ายจาก Ticket -> Action Plan
 
 ## Checklist Status
 - [x] รับคำขอและบันทึกลงแผน
@@ -97,3 +116,220 @@ Docker และ PostgreSQL ทำงานได้แล้ว, API health ผ
 
 ## Current Status (Request 6)
 เสร็จสิ้น: หน้า Action Plan รองรับตารางรายแถวตามคอลัมน์ที่ยืนยันแล้ว พร้อม Edit/Delete รายแถว, popup ยืนยันก่อนลบ และบันทึกข้อมูลลง backend database
+
+7. ปรับ Ability Management ให้สร้าง Ability ได้โดยไม่ต้องเลือก Project และสามารถผูก Project ในภายหลังได้
+
+## Request 7 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ requirement ในโหมด /bawork
+- [x] สรุป requirement และ acceptance criteria ลง requirement.md
+- [x] รออนุมัติแผนก่อนเริ่มพัฒนา
+- [x] ปรับ DB schema ให้ project_id เป็น nullable
+- [x] ปรับ Backend API (POST/PUT/GET) รองรับ project_id เป็น null
+- [x] ปรับ Frontend form ให้ projectId เป็น optional
+- [x] ทดสอบและอัปเดตเอกสารสถานะ
+
+## Current Status (Request 7)
+เสร็จสิ้น: Ability Management รองรับการสร้าง Ability แบบไม่ผูก Project, รองรับ bind Project ภายหลัง, และเพิ่มตัวกรอง No Project เรียบร้อย
+
+8. /bawork: เพิ่ม User-Role Management Module สำหรับ admin จัดการ user-role binding
+
+## Request 8 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ requirement ในโหมด /bawork
+- [x] สรุป requirement และ acceptance criteria ลง requirement.md
+- [x] รออนุมัติแผนก่อนเริ่มพัฒนา
+- [x] เพิ่มหน้า User Management ใน frontend
+- [x] เพิ่ม Backend API สำหรับ User Management
+- [x] ทดสอบและอัปเดตเอกสารสถานะ
+
+## Current Status (Request 8)
+เสร็จสิ้น: User Management Module พร้อมใช้งาน — admin จัดการ user/role/disable/reset password ได้ครบ
+
+9. /sawork: วิเคราะห์ flow การเปลี่ยน user role จากหน้า frontend และจัดทำแผนปรับ UX ให้ชัดเจน
+
+## Request 9 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ requirement ในโหมด /sawork
+- [x] จัดทำ frontend/backend/qa artifacts
+- [x] รออนุมัติแผนก่อนพัฒนา
+- [x] พัฒนา UX เพิ่มความชัดเจนของการเปลี่ยน role (ถ้าอนุมัติ)
+
+
+## Request 20 Checklist Status
+- [ ] รับคำขอและบันทึกลงแผน
+- [ ] วิเคราะห์ requirement และ UI parity
+- [ ] ปรับโค้ด Rollback plan section ให้รองรับ drag & drop, Edit, Delete
+- [ ] ทดสอบการทำงานและอัปเดตเอกสารสถานะ
+
+## Current Status (Request 20)
+รอดำเนินการ: ปรับ Rollback plan section ให้สามารถ drag & drop, Edit, Delete ได้เหมือน Action Plan Rows
+
+10. /bawork: เพิ่มปุ่ม Delete User, ทบทวนการคุมสิทธิ์การมองเห็นข้อมูลตาม owner, และเพิ่มปุ่ม Import CSV เพื่อสร้าง Action Plan Rows
+
+## Request 10 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ requirement ในโหมด /bawork
+- [x] สรุป requirement และ acceptance criteria ลง requirement.md
+- [x] รออนุมัติแผนก่อนเริ่มพัฒนา
+- [x] พัฒนา Delete User + Owner Visibility Controls + CSV Import Action Plan
+- [x] ทดสอบและอัปเดตเอกสารสถานะ
+
+## Current Status (Request 10)
+เสร็จสิ้น: เพิ่ม Delete User (hard delete + set no owner), เพิ่ม Ability/Project file list+download, และเพิ่ม Action Plan CSV import + drag reorder แล้ว
+
+11. /sawork: ปรับ data model ของ Project/Ability/Ticket ให้มีทั้ง owner และ assign_to (ผูกกับ response person) และทำ data migration สำหรับข้อมูลเดิม
+
+## Request 11 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ requirement ในโหมด /sawork
+- [x] จัดทำ frontend/backend/qa artifacts
+- [x] รออนุมัติแผนก่อนพัฒนา
+- [x] พัฒนา schema/API/UI สำหรับ owner + assign_to
+- [x] ทำ data migration: project เดิม owner=manager และ assign_to=sipparush.l
+- [x] ทดสอบและอัปเดตเอกสารสถานะ
+
+## SA Notes (Request 11)
+- Scope ครอบคลุม `projects`, `abilities`, `tickets` ให้มี 2 ฟิลด์เชิงสิทธิ์: `owner_user_id` และ `assign_to_user_id`
+- `assign_to_user_id` ต้องสะท้อนแนวคิดเดียวกับ `response_person` (ต้องกำหนด source of truth ชัดเจน)
+- Data migration ที่ร้องขอ: records เดิมของ project ให้ตั้ง owner เป็น user `manager` และ assign_to เป็น user `sipparush.l`
+- ต้องกำหนดกติกา migration สำหรับ ability/ticket ที่มีอยู่แล้วให้ชัดเจน (ใช้ owner/assign_to จาก project แม่ หรือ mapping อื่น)
+
+## Current Status (Request 11)
+เสร็จสิ้น: Project/Ability/Ticket รองรับ owner + assign-to แล้ว และ response person เปลี่ยนเป็น dropdown อ้างอิงผู้ใช้จากฐานข้อมูล
+
+12. /sawork: ปรับหน้า Overview ให้แสดงสรุปข้อมูลจาก project ที่เกี่ยวข้องกับผู้ใช้คนนั้นในฐานะ owner
+
+## Request 12 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ requirement ในโหมด /sawork
+- [x] จัดทำ frontend/backend/qa artifacts
+- [x] รออนุมัติแผนก่อนพัฒนา
+- [x] พัฒนา API summary แบบ owner-scoped
+- [x] ปรับ Overview UI ให้แสดงผลตาม scope ผู้ใช้
+- [x] ทดสอบและอัปเดตเอกสารสถานะ
+
+## SA Notes (Request 12)
+- Overview ต้องคำนวณ summary เฉพาะ project ที่ผู้ใช้เป็น owner (ไม่ใช่ global)
+- หาก role ไม่มี project ใน scope ให้แสดง empty-state ที่ชัดเจน
+- ต้องตรวจสอบความสอดคล้องกับ role policy ปัจจุบันที่จำกัดสิทธิ์ admin/manager/staff
+
+## Current Status (Request 12)
+เสร็จสิ้น: Overview page แสดง summary ตาม owner-related projects ของผู้ใช้เรียบร้อย
+
+13. /devwork: ปรับสิทธิ์ role `admin` ให้สามารถจัดการได้ทุกฟังก์ชัน เพื่อรองรับการดูแลรายการที่ยังไม่มี owner
+
+## Request 13 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ผลกระทบของ role policy (frontend + backend)
+- [x] ปรับสิทธิ์ `admin` ให้จัดการได้ทุก module และทุก endpoint ที่เกี่ยวข้อง
+- [x] ทดสอบการจัดการรายการที่ไม่มี owner ด้วยสิทธิ์ admin
+- [x] ยืนยันว่า manager/staff ยังถูกจำกัดสิทธิ์ตามนโยบายเดิม
+- [x] อัปเดตเอกสารสถานะ
+
+## Current Status (Request 13)
+เสร็จสิ้น: admin สามารถจัดการทุกฟังก์ชันได้แล้ว รวมถึงการเข้าถึงรายการที่ไม่มี owner ผ่าน frontend navigation และ API หลักทั้งหมด
+
+14. /devwork: ปรับ frontend CSS ให้มีความแตกต่างชัดเจนระหว่างข้อความปกติ กับลิงก์/dropdown
+
+## Request 14 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์จุดใช้งาน text/link/dropdown ที่กระทบหลายหน้า
+- [x] ปรับสไตล์ลิงก์ให้แยกจากข้อความทั่วไปอย่างชัดเจน
+- [x] ปรับสไตล์ dropdown/select ให้มี visual state ชัดเจน (default/focus/disabled)
+- [x] ทดสอบบน desktop และ mobile
+- [x] อัปเดตเอกสารสถานะ
+
+## Current Status (Request 14)
+เสร็จสิ้น: frontend ปรับ CSS ให้ลิงก์และ dropdown มี visual distinction ชัดเจนจากข้อความปกติแล้ว
+
+15. /devwork: เพิ่ม Role-Permission Management และรองรับ Multi-Role ต่อผู้ใช้ (union permissions)
+
+## Request 15 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] ยืนยันขอบเขตและกติกา (Page-level only, module actions, union allow, admin super role)
+- [x] เพิ่ม data model สำหรับ roles, permissions, role-permission, user-roles
+- [x] migrate ผู้ใช้เดิมจาก role เดี่ยวเป็น multi-role
+- [x] เพิ่ม API จัดการ role-permission matrix และ user multi-role assignment
+- [x] ปรับ auth/session ให้คืน effective permissions จากหลาย role
+- [x] ปรับ frontend gate/navigation ให้ใช้ permissions แทน role เดี่ยว
+- [x] ปรับหน้า User Management ให้จัดการ multi-role และ permission matrix
+- [x] ทดสอบ regression ของ login/page access/user management
+- [x] อัปเดตเอกสารสถานะ
+
+## Current Status (Request 15)
+เสร็จสิ้น: รองรับ multi-role, role-permission matrix, และ effective permissions (union allow) พร้อม admin super role แล้ว
+
+16. /devwork: แก้สิทธิ์การมองเห็นข้อมูลให้ owner และผู้ที่ถูก assign เห็นข้อมูลได้ครบทั้งระบบ
+
+## Request 16 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ root cause ของ owner-only scope ในทุก endpoint ที่เกี่ยวข้อง
+- [x] ปรับ API list/scope ให้รองรับ `(owner_user_id OR assign_to_user_id)`
+- [x] ปรับ API update/delete และ access-check helper ให้รองรับ assign scope
+- [x] ปรับ action-plan endpoints ให้ manager ใช้งานได้ตามสิทธิ์
+- [x] ตรวจสอบ syntax/errors ของไฟล์ที่แก้ไขทั้งหมด
+- [x] รันระบบและยืนยันสถานะ startup
+
+## Current Status (Request 16)
+เสร็จสิ้น: แก้ owner-only visibility เป็น owner-or-assignee ครอบคลุม Projects/Abilities/Tickets/Overview/Bootstrap/Action Plans/Files APIs และเคลียร์ไฟล์ CSV ชั่วคราวที่ค้างแล้ว
+
+17. /devwork: ปรับ Role-Permission Matrix โดยเพิ่มสิทธิ์แยกเป็น view/add/edit/delete
+
+## Request 17 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ผลกระทบของ permission model เดิม (manage) ต่อ frontend/backend/database
+- [x] ออกแบบ permission keys ใหม่แบบแยก view/add/edit/delete ต่อ module
+- [x] รออนุมัติแผนก่อนเริ่มพัฒนา
+- [x] ปรับ backend schema/seed/migration และ API permissions ให้รองรับ matrix ใหม่
+- [x] ปรับ frontend matrix UI และ gate checks ให้รองรับสิทธิ์ใหม่
+- [x] ทดสอบ regression ของ role matrix, page access, CRUD action ตามสิทธิ์ใหม่
+- [x] รันระบบและยืนยันการเริ่มต้นระบบ
+
+## Current Status (Request 17)
+เสร็จสิ้น: ระบบ role-permission matrix ปรับเป็น view/add/edit/delete ครบ modules หลัก พร้อม migration จาก manage เดิม, ปรับ API guards ตาม action, และปรับ UI controls ตามสิทธิ์ใหม่แล้ว
+
+18. /sawork: หน้า Action Plan เพิ่มส่วน Rollback plan ใต้ Action Plan Rows และเมื่อ import CSV เจอ phase = rollback ให้แสดงรายการในส่วนนี้
+
+## Request 18 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ requirement ในโหมด /sawork
+- [x] จัดทำ frontend/backend/qa artifacts
+- [x] รออนุมัติแผนก่อนพัฒนา
+- [x] พัฒนา UI Rollback plan section ในหน้า Action Plan
+- [x] ปรับ data shaping ของ Action Plan rows ให้แยก rollback items จาก phase
+- [ ] ทดสอบ import CSV กรณีมี phase = rollback และกรณีทั่วไป
+- [ ] ทดสอบ regression ของ Action Plan Rows เดิม (edit/delete/reorder/import)
+- [x] อัปเดตเอกสารสถานะหลังพัฒนา
+
+## SA Notes (Request 18)
+- Rollback plan section ต้องแสดงหลังตาราง Action Plan Rows เสมอ
+- เงื่อนไขการคัดรายการ: phase เท่ากับ rollback โดยไม่สนตัวพิมพ์เล็ก/ใหญ่ และ trim ช่องว่างก่อนเปรียบเทียบ
+- แหล่งข้อมูล rollback มาจาก rows ชุดเดียวกับ Action Plan (ไม่เพิ่ม table ใหม่)
+- พฤติกรรม import เดิมคงไว้ แต่รายการที่ phase=rollback ต้องปรากฏในส่วนใหม่ทันทีหลัง import
+- ขอบเขตรอบนี้เป็นการแสดงผลและจัดกลุ่มข้อมูลในหน้า Action Plan เท่านั้น ไม่เปลี่ยน permission model เพิ่ม
+
+## Current Status (Request 18)
+พัฒนาเสร็จในส่วน UI: เพิ่ม Rollback plan section ใต้ Action Plan Rows และคัดแยกรายการจาก `phase=rollback` (trim + case-insensitive) แล้ว; คงเหลือการทดสอบ import/regression เชิง QA
+
+19. /bawork + /devwork: ให้ staff สามารถล้างรายการ Action Plan ปัจจุบันทั้งหมด และ re-import ไฟล์เพื่อเพิ่มรายการใหม่
+
+## Request 19 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ requirement ในโหมด /bawork
+- [x] จัดทำ frontend/backend/qa artifacts
+- [x] รออนุมัติแผนก่อนพัฒนา
+- [x] เพิ่ม API clear all action plan rows ตาม ticket ที่เลือก
+- [x] เพิ่มปุ่ม Clear Current Action Plan Items ในหน้า Action Plan
+- [x] เชื่อม flow clear -> reload rows -> re-import ต่อได้
+- [ ] ทดสอบ regression ของ add/edit/delete/reorder/import หลังเพิ่ม clear all
+- [x] อัปเดตเอกสารสถานะหลังพัฒนา
+
+## BA/SA Notes (Request 19)
+- Flow ที่ยืนยัน: แยก 2 ขั้นตอน (Clear All และ Import CSV) ไม่รวมเป็นปุ่มเดียว
+- ความหมายของ clear: ลบ action plan rows ทั้งหมดของ ticket ปัจจุบัน
+- ยืนยัน UX: ไม่ใช้ popup ยืนยัน (single-click action)
+- ใช้ permission เดิม `actionPlansDelete` สำหรับ clear all โดยไม่เพิ่ม permission key ใหม่
+
+## Current Status (Request 19)
+พัฒนาเสร็จในส่วน frontend+backend: staff ที่มีสิทธิ์ลบสามารถ Clear Current Action Plan Items ของ ticket ที่เลือก และ import ไฟล์ใหม่ได้ทันที; คงเหลือการทดสอบ regression เชิง QA

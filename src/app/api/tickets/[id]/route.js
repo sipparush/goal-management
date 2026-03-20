@@ -1,7 +1,16 @@
 import { dbQuery } from "@/lib/db";
 import { ok, fail } from "@/lib/api-response";
-import { isAdmin, isStaff, requireAuth } from "@/lib/auth-server";
+import { hasEffectivePermission, isAdmin, requireAuth } from "@/lib/auth-server";
+import { PERMISSIONS } from "@/lib/roles";
 import { mapTicketRow } from "@/lib/server-records";
+
+async function resolveAssignee(assignToUserId) {
+    const result = await dbQuery("SELECT id, username FROM users WHERE id = $1 AND is_active = TRUE", [assignToUserId]);
+    if (result.rowCount === 0) {
+        return null;
+    }
+    return result.rows[0];
+}
 
 export async function PUT(request, { params }) {
     try {
@@ -10,13 +19,13 @@ export async function PUT(request, { params }) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isStaff(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.ticketsEdit)) {
             return fail("forbidden", 403);
         }
 
         const { id } = await params;
         const body = await request.json();
-        const requiredFields = ["abilityId", "title", "target", "responsePerson", "startDate", "endDate"];
+        const requiredFields = ["abilityId", "title", "target", "assignToUserId", "startDate", "endDate"];
 
         for (const field of requiredFields) {
             if (!body[field]) {
@@ -24,33 +33,17 @@ export async function PUT(request, { params }) {
             }
         }
 
-        if (isStaff(auth.user)) {
-            const ownAbilityCheck = await dbQuery("SELECT id FROM abilities WHERE id = $1 AND owner_user_id = $2", [
-                body.abilityId,
-                auth.user.id,
-            ]);
+        const ownAbilityCheck = isAdmin(auth.user)
+            ? await dbQuery("SELECT id FROM abilities WHERE id = $1", [body.abilityId])
+            : await dbQuery("SELECT id FROM abilities WHERE id = $1 AND (owner_user_id = $2 OR assign_to_user_id = $2)", [body.abilityId, auth.user.id]);
 
-            if (ownAbilityCheck.rowCount === 0) {
-                return fail("staff can update ticket only under own ability", 403);
-            }
+        if (ownAbilityCheck.rowCount === 0) {
+            return fail("staff can update ticket only under own ability", 403);
         }
 
-        const whereClause = isStaff(auth.user)
-            ? "WHERE id = $7 AND owner_user_id = $8"
-            : "WHERE id = $7";
-
-        const queryParams = [
-            body.abilityId,
-            body.title.trim(),
-            body.target.trim(),
-            body.responsePerson.trim(),
-            body.startDate,
-            body.endDate,
-            id,
-        ];
-
-        if (isStaff(auth.user)) {
-            queryParams.push(auth.user.id);
+        const assignee = await resolveAssignee(body.assignToUserId);
+        if (!assignee) {
+            return fail("assignToUserId not found or inactive", 400);
         }
 
         const result = await dbQuery(
@@ -61,10 +54,20 @@ export async function PUT(request, { params }) {
            response_person = $4,
            start_date = $5,
            end_date = $6,
+           assign_to_user_id = $7,
            updated_at = NOW()
-       ${whereClause}
+       WHERE id = $8
        RETURNING *`,
-            queryParams,
+            [
+                body.abilityId,
+                body.title.trim(),
+                body.target.trim(),
+                assignee.username,
+                body.startDate,
+                body.endDate,
+                assignee.id,
+                id,
+            ],
         );
 
         if (result.rowCount === 0) {
@@ -84,14 +87,14 @@ export async function DELETE(_request, { params }) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isStaff(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.ticketsDelete)) {
             return fail("forbidden", 403);
         }
 
         const { id } = await params;
-        const result = isStaff(auth.user)
-            ? await dbQuery("DELETE FROM tickets WHERE id = $1 AND owner_user_id = $2", [id, auth.user.id])
-            : await dbQuery("DELETE FROM tickets WHERE id = $1", [id]);
+        const result = isAdmin(auth.user)
+            ? await dbQuery("DELETE FROM tickets WHERE id = $1", [id])
+            : await dbQuery("DELETE FROM tickets WHERE id = $1 AND (owner_user_id = $2 OR assign_to_user_id = $2)", [id, auth.user.id]);
 
         if (result.rowCount === 0) {
             return fail("ticket not found", 404);

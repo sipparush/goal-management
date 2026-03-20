@@ -1,11 +1,17 @@
 export async function requestJson(url, options = {}) {
+    const hasFormDataBody = typeof FormData !== "undefined" && options.body instanceof FormData;
+
     const response = await fetch(url, {
         ...options,
         credentials: "include",
-        headers: {
-            "Content-Type": "application/json",
-            ...(options.headers || {}),
-        },
+        headers: hasFormDataBody
+            ? {
+                ...(options.headers || {}),
+            }
+            : {
+                "Content-Type": "application/json",
+                ...(options.headers || {}),
+            },
         cache: "no-store",
     });
 

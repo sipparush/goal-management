@@ -26,14 +26,20 @@ export function AppDataProvider({ children }) {
 
     const value = useMemo(
         () => ({
-            state: { user, selectedRole: user?.role || "" },
+            state: {
+                user,
+                selectedRole: user?.role || "",
+                roles: Array.isArray(user?.roles) ? user.roles : [],
+                effectivePermissions: Array.isArray(user?.effectivePermissions) ? user.effectivePermissions : [],
+            },
             loadingUser,
             login: async (username, password) => {
                 const result = await requestJson("/api/auth/login", {
                     method: "POST",
                     body: JSON.stringify({ username, password }),
                 });
-                setUser(result.user);
+                // Reload from /api/auth/me to ensure multi-role and effective permissions are current.
+                await loadUser();
                 return result.user;
             },
             logout: async () => {

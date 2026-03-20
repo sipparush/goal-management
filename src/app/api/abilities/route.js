@@ -1,14 +1,27 @@
 import { randomUUID } from "crypto";
 import { dbQuery } from "@/lib/db";
 import { ok, fail } from "@/lib/api-response";
-import { isAdmin, isStaff, requireAuth } from "@/lib/auth-server";
+import { hasEffectivePermission, isAdmin, requireAuth } from "@/lib/auth-server";
+import { PERMISSIONS } from "@/lib/roles";
 import { mapAbilityRow } from "@/lib/server-records";
+
+async function resolveAssignee(assignToUserId) {
+    const result = await dbQuery("SELECT id, username FROM users WHERE id = $1 AND is_active = TRUE", [assignToUserId]);
+    if (result.rowCount === 0) {
+        return null;
+    }
+    return result.rows[0];
+}
 
 export async function GET(request) {
     try {
         const auth = await requireAuth(request);
         if (auth.error) {
             return auth.error;
+        }
+
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.abilitiesView)) {
+            return fail("forbidden", 403);
         }
 
         const { searchParams } = new URL(request.url);
@@ -19,19 +32,23 @@ export async function GET(request) {
         const clauses = [];
         const params = [];
 
+        if (!isAdmin(auth.user)) {
+            params.push(auth.user.id);
+            clauses.push(`(a.owner_user_id = $${params.length} OR a.assign_to_user_id = $${params.length})`);
+        }
+
         if (search) {
             params.push(`%${search}%`);
             clauses.push(`(a.name ILIKE $${params.length} OR a.target ILIKE $${params.length} OR a.response_person ILIKE $${params.length})`);
         }
 
         if (projectId !== "all") {
-            params.push(projectId);
-            clauses.push(`a.project_id = $${params.length}`);
-        }
-
-        if (isStaff(auth.user)) {
-            params.push(auth.user.id);
-            clauses.push(`a.owner_user_id = $${params.length}`);
+            if (projectId === "no-project") {
+                clauses.push("a.project_id IS NULL");
+            } else {
+                params.push(projectId);
+                clauses.push(`a.project_id = $${params.length}`);
+            }
         }
 
         if (status === "in-time") {
@@ -47,7 +64,7 @@ export async function GET(request) {
         const result = await dbQuery(
             `SELECT a.*, p.name AS project_name
        FROM abilities a
-       JOIN projects p ON p.id = a.project_id
+       LEFT JOIN projects p ON p.id = a.project_id
        ${where}
        ORDER BY a.start_date ASC, a.created_at DESC`,
             params,
@@ -66,12 +83,12 @@ export async function POST(request) {
             return auth.error;
         }
 
-        if (!isAdmin(auth.user) && !isStaff(auth.user)) {
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.abilitiesAdd)) {
             return fail("forbidden", 403);
         }
 
         const body = await request.json();
-        const requiredFields = ["projectId", "name", "target", "responsePerson", "startDate", "endDate"];
+        const requiredFields = ["name", "target", "assignToUserId", "startDate", "endDate"];
 
         for (const field of requiredFields) {
             if (!body[field]) {
@@ -79,30 +96,37 @@ export async function POST(request) {
             }
         }
 
-        if (isStaff(auth.user)) {
-            const ownProjectCheck = await dbQuery("SELECT id FROM projects WHERE id = $1 AND owner_user_id = $2", [
-                body.projectId,
-                auth.user.id,
-            ]);
+        const normalizedProjectId = body.projectId || null;
+
+        if (normalizedProjectId) {
+            const ownProjectCheck = isAdmin(auth.user)
+                ? await dbQuery("SELECT id FROM projects WHERE id = $1", [normalizedProjectId])
+                : await dbQuery("SELECT id FROM projects WHERE id = $1 AND (owner_user_id = $2 OR assign_to_user_id = $2)", [normalizedProjectId, auth.user.id]);
 
             if (ownProjectCheck.rowCount === 0) {
-                return fail("staff can create ability only under own project", 403);
+                return fail("can only create ability under own project", 403);
             }
         }
 
+        const assignee = await resolveAssignee(body.assignToUserId);
+        if (!assignee) {
+            return fail("assignToUserId not found or inactive", 400);
+        }
+
         const result = await dbQuery(
-            `INSERT INTO abilities (id, project_id, name, target, response_person, start_date, end_date, owner_user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `INSERT INTO abilities (id, project_id, name, target, response_person, start_date, end_date, owner_user_id, assign_to_user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
             [
                 randomUUID(),
-                body.projectId,
+                normalizedProjectId,
                 body.name.trim(),
                 body.target.trim(),
-                body.responsePerson.trim(),
+                assignee.username,
                 body.startDate,
                 body.endDate,
                 auth.user.id,
+                assignee.id,
             ],
         );
 
