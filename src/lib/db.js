@@ -15,6 +15,16 @@ function getPool() {
             password: process.env.PGPASSWORD,
             database: process.env.PGDATABASE,
         });
+        pool.query('SELECT 1').then(() => {
+            console.log('✅ Database connected:', {
+                host: process.env.PGHOST,
+                port: process.env.PGPORT,
+                user: process.env.PGUSER,
+                database: process.env.PGDATABASE,
+            });
+        }).catch((err) => {
+            console.error('❌ Database connection failed:', err);
+        });
     }
 
     return pool;
