@@ -5,7 +5,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 FROM base AS deps
 COPY package.json package-lock.json ./
 # ติดตั้งเฉพาะ production dependencies
-RUN npm ci --omit=dev
+# RUN npm ci --omit=dev
+RUN npm ci
 
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
