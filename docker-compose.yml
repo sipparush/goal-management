@@ -17,3 +17,10 @@ services:
       - DATABASE_URL=postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}
 
     restart: unless-stopped
+    networks:
+      - itportal_network
+
+networks:
+  itportal_network:
+    name: bomb-deploy-itportal_default
+    external: true
