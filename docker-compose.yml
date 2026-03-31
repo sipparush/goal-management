@@ -11,16 +11,17 @@ services:
       - NODE_ENV=production
       - PGUSER=${PGUSER}
       - PGPASSWORD=${PGPASSWORD}
-      - PGHOST=${PGHOST}
+      - PGHOST=host.docker.internal
       - PGPORT=${PGPORT}
       - PGDATABASE=${PGDATABASE}
       - DATABASE_URL=postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}
 
     restart: unless-stopped
-    networks:
-      - itportal_network
 
-networks:
-  itportal_network:
-    name: bomb-deploy-itportal_default
-    external: true
+#     networks:
+#       - itportal_network
+
+# networks:
+#   itportal_network:
+#     name: bomb-deploy-itportal_default
+#     external: true
