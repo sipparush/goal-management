@@ -1,3 +1,9 @@
+1. เชื่อมต่อและตั้งค่าฐานข้อมูล PostgreSQL ด้วย Docker
+	- [ ] 1.1 เชื่อมต่อเข้า PostgreSQL ด้วย docker exec
+	- [ ] 1.2 สร้าง user: pm_user, password: pm_password
+	- [ ] 1.3 สร้าง database: pm_db
+	- [ ] 1.4 กำหนดสิทธิ์ user ให้กับ database
+	- [ ] 1.5 นำเข้า schema จากไฟล์ backend/init/001_schema.sql ไปยัง pm_db โดยเพิ่ม table จากฐานข้อมูลเดิม (ไม่ลบของเดิม)
 22. /sawork: UX Redesign & Dashboard Modernization
 - [ ] วิเคราะห์ข้อเสนอ BA และจัดทำ UI/Component structure (skeleton, card, grid, role-aware)
 - [ ] ออกแบบ staged loading, async state, skeleton loader, dashboard summary cards
@@ -16,10 +22,10 @@
 - UX: กด Enter ใน input (ยกเว้น textarea) = Save, กด Esc = Cancel
 - รองรับสิทธิ์ canEditActionPlan เท่านั้น
 21. /sawork: ปรับ Action Plan Rows ให้แก้ไขข้อมูลแต่ละแถวแบบ inline (editable in its line)
-- [ ] บันทึกคำขอและเพิ่มลงแผน
-- [ ] วิเคราะห์ requirement และแนวทาง inline edit
-- [ ] ออกแบบ/ปรับโค้ด Action Plan Rows ให้แก้ไข inline
-- [ ] ทดสอบและอัปเดตเอกสารสถานะ
+- [x] บันทึกคำขอและเพิ่มลงแผน
+- [x] วิเคราะห์ requirement และแนวทาง inline edit
+- [x] ออกแบบ/ปรับโค้ด Action Plan Rows ให้แก้ไข inline
+- [x] ทดสอบและอัปเดตเอกสารสถานะ
 # Implement Plan
 
 ## Request List

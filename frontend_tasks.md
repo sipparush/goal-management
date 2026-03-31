@@ -1,3 +1,5 @@
+## Status (Request 21)
+Completed
 # Frontend Tasks
 ## Request 22 (/sawork): UX Redesign & Dashboard Modernization
 - [ ] ออกแบบ/สร้าง Skeleton Loader (table, card, form)

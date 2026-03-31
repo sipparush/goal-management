@@ -1,3 +1,5 @@
+## Status (Request 21)
+Completed
 ## /qawork - Request 22
 - [ ] วิเคราะห์ test scenario: skeleton loader, staged loading, async fallback
 - [ ] ทดสอบ dashboard summary cards, CTA prominence, grid/card layout

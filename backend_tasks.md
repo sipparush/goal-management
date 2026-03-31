@@ -1,3 +1,5 @@
+## Status (Request 21)
+Completed
 ## Request 22 (/sawork): UX Redesign & Dashboard Modernization
 - [ ] ปรับ API summary cards (Active Goals, Due Tickets, Blocked Tasks)
 - [ ] เพิ่ม endpoint สำหรับ UX metric logging (task time, success, bounce)

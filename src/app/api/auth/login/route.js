@@ -1,12 +1,15 @@
 import { dbQuery } from "@/lib/db";
 import { fail } from "@/lib/api-response";
 import { authenticateUser, createSessionResponse } from "@/lib/auth-server";
+import { ReactServerDOMWebpackServer } from "next/dist/server/route-modules/app-page/vendored/rsc/entrypoints";
 
 export async function POST(request) {
     try {
         const body = await request.json();
         const username = body.username?.trim();
         const password = body.password?.trim();
+
+        console.log({ username, password })
 
         if (!username || !password) {
             return fail("username and password are required", 400);
