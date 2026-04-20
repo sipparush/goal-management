@@ -9,11 +9,14 @@ services:
       - "4001:3000"
     environment:
       - NODE_ENV=production
-      - PGUSER=${PGUSER}
-      - PGPASSWORD=${PGPASSWORD}
-      - PGHOST=${PGHOST}
-      - PGPORT=${PGPORT}
-      - PGDATABASE=${PGDATABASE}
-      - DATABASE_URL=postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}
+      # - PGUSER=${PGUSER}
+      # - PGPASSWORD=${PGPASSWORD}
+      # - PGHOST=${PGHOST}
+      # - PGPORT=${PGPORT}
+      # - PGDATABASE=${PGDATABASE}
+      # - DATABASE_URL=postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}
+
+    env_file:
+      - .env
 
     restart: unless-stopped
