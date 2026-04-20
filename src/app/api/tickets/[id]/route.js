@@ -105,3 +105,40 @@ export async function DELETE(_request, { params }) {
         return fail(`Failed to delete ticket: ${error.message}`, 500);
     }
 }
+
+export async function PATCH(request, { params }) {
+    try {
+        const auth = await requireAuth(request);
+        if (auth.error) {
+            return auth.error;
+        }
+
+        if (!hasEffectivePermission(auth.user, PERMISSIONS.ticketsEdit)) {
+            return fail("forbidden", 403);
+        }
+
+        const { id } = await params;
+        const body = await request.json();
+
+        if (body.action !== "close") {
+            return fail("unsupported action", 400);
+        }
+
+        const result = await dbQuery(
+            `UPDATE tickets
+             SET closed_at = NOW(), updated_at = NOW()
+             WHERE id = $1
+               AND closed_at IS NULL
+             RETURNING *`,
+            [id],
+        );
+
+        if (result.rowCount === 0) {
+            return fail("ticket not found or already closed", 404);
+        }
+
+        return ok({ item: mapTicketRow(result.rows[0]) });
+    } catch (error) {
+        return fail(`Failed to close ticket: ${error.message}`, 500);
+    }
+}

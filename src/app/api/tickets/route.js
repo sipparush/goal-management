@@ -48,11 +48,15 @@ export async function GET(request) {
         }
 
         if (status === "in-time") {
-            clauses.push("CURRENT_DATE <= t.end_date");
+            clauses.push("CURRENT_DATE <= t.end_date AND t.closed_at IS NULL");
         }
 
         if (status === "delay") {
-            clauses.push("CURRENT_DATE > t.end_date");
+            clauses.push("CURRENT_DATE > t.end_date AND t.closed_at IS NULL");
+        }
+
+        if (status === "closed") {
+            clauses.push("t.closed_at IS NOT NULL");
         }
 
         const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";

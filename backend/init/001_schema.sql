@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   response_person TEXT NOT NULL,
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
+  closed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -9,8 +9,19 @@ Completed
 - [ ] ทดสอบ UX metric logging (task time, success, bounce)
 - [ ] รวบรวม feedback จาก dev/PM จริง
 
-## Status (Request 22)
-Planned - Awaiting implementation
+## /qawork - E2E Test 2026-04-20
+- [x] ทดสอบ upload .csv → PASS
+- [x] ทดสอบ upload .png → PASS
+- [x] ทดสอบ upload .xlsx → PASS
+- [x] ทดสอบ reject .exe → PASS
+- [x] ทดสอบ delete uploaded file → PASS
+- [x] ทดสอบ GET /api/tickets?status=closed → PASS
+- [x] ทดสอบ PATCH close ticket → SKIP (ไม่มี open ticket ใน DB)
+
+## Status (E2E 2026-04-20)
+PASS — รอ approval ก่อน push to git
+
+
 # QA Tasks
 
 ## /qawork - Request 5

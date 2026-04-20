@@ -169,6 +169,24 @@ export default function TicketManagementPage() {
         }
     };
 
+    const onCloseTicket = async (id) => {
+        if (!canEditTicket) {
+            setError("forbidden");
+            return;
+        }
+
+        try {
+            setError("");
+            await requestJson(`/api/tickets/${id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ action: "close" }),
+            });
+            loadTickets();
+        } catch (closeError) {
+            setError(closeError.message);
+        }
+    };
+
     const onExport = () => {
         const rows = tickets.map((item) => ({
             ability: item.abilityName,
@@ -267,6 +285,7 @@ export default function TicketManagementPage() {
                             <option value="all">All</option>
                             <option value="in-time">In Time</option>
                             <option value="delay">Delay</option>
+                            <option value="closed">Closed</option>
                         </select>
                     </label>
                     <button type="button" className="btn-secondary" onClick={onExport}>
@@ -324,6 +343,11 @@ export default function TicketManagementPage() {
                                                 {canEditTicket ? (
                                                     <button type="button" className="btn-secondary" onClick={() => onEdit(ticket)}>
                                                         Edit
+                                                    </button>
+                                                ) : null}
+                                                {canEditTicket && !ticket.closedAt ? (
+                                                    <button type="button" className="btn-secondary" onClick={() => onCloseTicket(ticket.id)}>
+                                                        Close
                                                     </button>
                                                 ) : null}
                                                 {canDeleteTicket ? (
