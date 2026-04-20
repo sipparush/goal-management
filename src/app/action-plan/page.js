@@ -49,6 +49,16 @@ function isRollbackPhase(phase) {
     return String(phase || "").trim().toLowerCase() === "rollback";
 }
 
+function getApStatusClass(status) {
+    const s = String(status || "").trim().toLowerCase().replace(/[\s-]+/g, "-");
+    if (s === "pending") return "ap-status pending";
+    if (s === "in-progress" || s === "inprogress" || s === "in_progress") return "ap-status in-progress";
+    if (s === "done" || s === "completed") return "ap-status done";
+    if (s === "cancelled" || s === "canceled") return "ap-status cancelled";
+    if (s === "failed") return "ap-status failed";
+    return "ap-status";
+}
+
 
 export default function ActionPlanPage() {
     return (
@@ -144,6 +154,11 @@ function ActionPlanPageInner() {
 
     const rollbackRows = useMemo(
         () => rows.filter((row) => isRollbackPhase(row.phase)),
+        [rows],
+    );
+
+    const nonRollbackRows = useMemo(
+        () => rows.filter((row) => !isRollbackPhase(row.phase)),
         [rows],
     );
 
@@ -316,7 +331,6 @@ function ActionPlanPageInner() {
 
             await reloadRows(selectedTicketId);
             setImportResult(null);
-            setImportFile(null);
             resetForm();
             setMessage(`ล้าง Action Plan สำเร็จ ${result.clearedCount || 0} แถว`);
         } catch (clearError) {
@@ -363,8 +377,339 @@ function ActionPlanPageInner() {
 
     return (
         <RoleGate path="/action-plan">
-            {/* ...existing code... (คัดลอกเนื้อหาเดิมทั้งหมดของ return) */}
-            {/* เนื้อหาเดิมทั้งหมดของ return ด้านบนนี้จะถูกย้ายมาอยู่ในฟังก์ชันนี้ */}
+            <section className="stack">
+                <h2>Action Plan</h2>
+
+                {error ? <p className="notice error">{error}</p> : null}
+                {message ? <p className="notice">{message}</p> : null}
+
+                <section className="toolbar">
+                    <label>
+                        Select Ticket
+                        <select
+                            value={selectedTicketId}
+                            onChange={(event) => setSelectedTicketId(event.target.value)}
+                            disabled={loadingTickets}
+                        >
+                            <option value="">Select ticket</option>
+                            {tickets.map((ticket) => (
+                                <option key={ticket.id} value={ticket.id}>
+                                    {ticket.title} ({ticket.target})
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                </section>
+
+                <section className="table-wrap">
+                    <h3>Ticket Context</h3>
+                    {!selectedTicket ? (
+                        <p>กรุณาเลือก Ticket เพื่อแก้ Action Plan</p>
+                    ) : (
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Ticket</th>
+                                    <th>Target</th>
+                                    <th>Ability</th>
+                                    <th>Response Person</th>
+                                    <th>Start</th>
+                                    <th>End</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>{selectedTicket.title}</td>
+                                    <td>{selectedTicket.target}</td>
+                                    <td>{selectedTicket.abilityName || "-"}</td>
+                                    <td>{selectedTicket.responsePerson}</td>
+                                    <td>{selectedTicket.startDate}</td>
+                                    <td>{selectedTicket.endDate}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    )}
+                </section>
+
+                <section className="stack">
+                    <h3>Import CSV (1 file ต่อ 1 action plan)</h3>
+                    <div className="toolbar">
+                        <label>
+                            CSV File (phase, No, action, status, duration, start, end, remark)
+                            <input
+                                type="file"
+                                accept=".csv,text/csv"
+                                onChange={(event) =>
+                                    setImportFile(event.target.files && event.target.files[0] ? event.target.files[0] : null)
+                                }
+                            />
+                        </label>
+                        <button type="button" className="btn-primary" onClick={onImportCsv} disabled={!selectedTicketId || !importFile || !canAddActionPlan}>
+                            Import CSV
+                        </button>
+                        <button
+                            type="button"
+                            className="btn-danger"
+                            onClick={onClearCurrentActionPlan}
+                            disabled={!selectedTicketId || !canDeleteActionPlan || clearingRows}
+                        >
+                            {clearingRows ? "Clearing..." : "Clear Current Action Plan Items"}
+                        </button>
+                    </div>
+                    {importResult ? (
+                        <div className="table-wrap">
+                            <p>
+                                Imported: {importResult.insertedCount} row(s), Failed: {importResult.failedCount} row(s)
+                            </p>
+                            {importResult.failures?.length ? (
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>CSV Row</th>
+                                            <th>Reason</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {importResult.failures.map((item) => (
+                                            <tr key={`${item.row}-${item.reason}`}>
+                                                <td>{item.row}</td>
+                                                <td>{item.reason}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </section>
+
+                {canAddActionPlan || canEditActionPlan ? (
+                    <form className="form-grid" onSubmit={onSubmit}>
+                        <label>
+                            Phase
+                            <input name="phase" value={form.phase} onChange={onChangeForm} placeholder="เช่น P1" />
+                        </label>
+                        <label>
+                            No
+                            <input type="number" min="0" name="itemNo" value={form.itemNo} onChange={onChangeForm} placeholder="ลำดับในเฟส" />
+                        </label>
+                        <label>
+                            Action
+                            <input name="action" value={form.action} onChange={onChangeForm} placeholder="ระบุ action" />
+                        </label>
+                        <label>
+                            Status
+                            <input name="status" value={form.status} onChange={onChangeForm} placeholder="Pending / In Progress / Done" />
+                        </label>
+                        <label>
+                            Duration(min)
+                            <input type="number" min="0" name="duration" value={form.duration} onChange={onChangeForm} />
+                        </label>
+                        <label>
+                            Exp.Start
+                            <input type="datetime-local" name="start" value={form.start} onChange={onChangeForm} />
+                        </label>
+                        <label>
+                            Exp.End
+                            <input type="datetime-local" name="end" value={form.end} onChange={onChangeForm} />
+                        </label>
+                        <label>
+                            Remark
+                            <textarea
+                                name="remark"
+                                value={form.remark}
+                                onChange={onChangeForm}
+                                rows={3}
+                                placeholder="หมายเหตุ"
+                            />
+                        </label>
+                        <button type="submit" disabled={!selectedTicketId || (editingId ? !canEditActionPlan : !canAddActionPlan)}>
+                            {editingId ? "Update Row" : "Add Row"}
+                        </button>
+                        {editingId ? (
+                            <button type="button" className="btn-secondary" onClick={resetForm}>
+                                Cancel Edit
+                            </button>
+                        ) : null}
+                    </form>
+                ) : null}
+
+                <section className="table-wrap">
+                    <h3>Action Plan Rows (drag row เพื่อเปลี่ยนลำดับ)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Phase</th>
+                                <th>No</th>
+                                <th>Action</th>
+                                <th>Status</th>
+                                <th>Duration(min)</th>
+                                <th>Exp.Start</th>
+                                <th>Exp.End</th>
+                                <th>Remark</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loadingRows ? (
+                                <tr>
+                                    <td colSpan={10}>กำลังโหลดข้อมูล...</td>
+                                </tr>
+                            ) : nonRollbackRows.length === 0 ? (
+                                <tr>
+                                    <td colSpan={10}>ยังไม่มีข้อมูล Action Plan</td>
+                                </tr>
+                            ) : (
+                                nonRollbackRows.map((row, index) => (
+                                    editingId === row.id ? (
+                                        <tr key={row.id} className="editing-row">
+                                            <td>{index + 1}</td>
+                                            <td>
+                                                <input name="phase" value={form.phase} onChange={onChangeForm} />
+                                            </td>
+                                            <td>
+                                                <input type="number" min="0" name="itemNo" value={form.itemNo} onChange={onChangeForm} />
+                                            </td>
+                                            <td>
+                                                <input name="action" value={form.action} onChange={onChangeForm} />
+                                            </td>
+                                            <td>
+                                                <input name="status" value={form.status} onChange={onChangeForm} />
+                                            </td>
+                                            <td>
+                                                <input type="number" min="0" name="duration" value={form.duration} onChange={onChangeForm} />
+                                            </td>
+                                            <td>
+                                                <input type="datetime-local" name="start" value={form.start} onChange={onChangeForm} />
+                                            </td>
+                                            <td>
+                                                <input type="datetime-local" name="end" value={form.end} onChange={onChangeForm} />
+                                            </td>
+                                            <td>
+                                                <textarea name="remark" value={form.remark} onChange={onChangeForm} rows={2} />
+                                            </td>
+                                            <td>
+                                                <div className="inline-actions">
+                                                    <button type="button" className="btn-primary" onClick={onSubmit}>
+                                                        Save
+                                                    </button>
+                                                    <button type="button" className="btn-secondary" onClick={resetForm}>
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        <tr
+                                            key={row.id}
+                                            draggable={canEditActionPlan}
+                                            onDragStart={() => setDraggingId(row.id)}
+                                            onDragOver={(event) => event.preventDefault()}
+                                            onDrop={() => onDropRow(row.id)}
+                                        >
+                                            <td>{index + 1}</td>
+                                            <td>{row.phase || "-"}</td>
+                                            <td>{row.itemNo ?? "-"}</td>
+                                            <td>{row.action}</td>
+                                            <td><span className={getApStatusClass(row.status)}>{row.status}</span></td>
+                                            <td>{row.duration}</td>
+                                            <td>{toDateTimeInputValue(row.start).replace("T", " ")}</td>
+                                            <td>{toDateTimeInputValue(row.end).replace("T", " ")}</td>
+                                            <td>{row.remark || "-"}</td>
+                                            <td>
+                                                <div className="inline-actions">
+                                                    {canEditActionPlan && !editingId ? (
+                                                        <button type="button" className="btn-secondary" onClick={() => onEdit(row)}>
+                                                            Edit
+                                                        </button>
+                                                    ) : null}
+                                                    {canDeleteActionPlan && !editingId ? (
+                                                        <button type="button" className="btn-danger" onClick={() => onDelete(row.id)}>
+                                                            Delete
+                                                        </button>
+                                                    ) : null}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </section>
+
+                <section className="table-wrap">
+                    <h3>Rollback plan (drag row เพื่อเปลี่ยนลำดับ)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Phase</th>
+                                <th>No</th>
+                                <th>Action</th>
+                                <th>Status</th>
+                                <th>Duration(min)</th>
+                                <th>Exp.Start</th>
+                                <th>Exp.End</th>
+                                <th>Remark</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loadingRows ? (
+                                <tr>
+                                    <td colSpan={10}>กำลังโหลดข้อมูล...</td>
+                                </tr>
+                            ) : rollbackRows.length === 0 ? (
+                                <tr>
+                                    <td colSpan={10}>ยังไม่มีรายการ Rollback plan</td>
+                                </tr>
+                            ) : (
+                                rollbackRows.map((row, index) => (
+                                    <tr
+                                        key={`rollback-${row.id}`}
+                                        draggable={canEditActionPlan}
+                                        onDragStart={() => setDraggingId(row.id)}
+                                        onDragOver={(event) => event.preventDefault()}
+                                        onDrop={() => {
+                                            const fromIndex = rows.findIndex((r) => r.id === draggingId);
+                                            const toIndex = rows.findIndex((r) => r.id === row.id);
+                                            if (fromIndex >= 0 && toIndex >= 0 && fromIndex !== toIndex) {
+                                                onDropRow(row.id);
+                                            }
+                                        }}
+                                    >
+                                        <td>{index + 1}</td>
+                                        <td>{row.phase || "-"}</td>
+                                        <td>{row.itemNo ?? "-"}</td>
+                                        <td>{row.action}</td>
+                                        <td><span className={getApStatusClass(row.status)}>{row.status}</span></td>
+                                        <td>{row.duration}</td>
+                                        <td>{toDateTimeInputValue(row.start).replace("T", " ")}</td>
+                                        <td>{toDateTimeInputValue(row.end).replace("T", " ")}</td>
+                                        <td>{row.remark || "-"}</td>
+                                        <td>
+                                            <div className="inline-actions">
+                                                {canEditActionPlan ? (
+                                                    <button type="button" className="btn-secondary" onClick={() => onEdit(row)}>
+                                                        Edit
+                                                    </button>
+                                                ) : null}
+                                                {canDeleteActionPlan ? (
+                                                    <button type="button" className="btn-danger" onClick={() => onDelete(row.id)}>
+                                                        Delete
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </section>
+            </section>
         </RoleGate>
     );
 }
