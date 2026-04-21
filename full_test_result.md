@@ -76,3 +76,40 @@ Scope: Request 5 (Ticket Edit Action -> Action Plan + /qawork UAT)
 
 ## Conclusion
 Request 5 test status: PASS
+
+---
+
+## E2E Test — 2026-04-21
+Scope: Request 23 Ticket file management + Ability merged file list
+
+### Environment
+- App: Next.js dev server at http://localhost:4001
+- DB: PostgreSQL (`pm_db`)
+
+### Test Cases
+
+| # | Test Case | Expected | Result |
+|---|-----------|----------|--------|
+| 1 | Login as admin | 200 + session cookie + user object | **PASS** |
+| 2 | GET /api/auth/me with session | 200 + authenticated user | **PASS** |
+| 3 | List files for target ticket before upload | 200 + items array | **PASS** |
+| 4 | Upload `.xlsx` to ticket via /api/tickets/[id]/files | 201 + created item | **PASS** |
+| 5 | Download uploaded ticket file via /api/files/[id]/download | 200 + non-empty file | **PASS** |
+| 6 | Delete uploaded ticket file via /api/files/[id] | 200 + id | **PASS** |
+| 7 | Ticket file list is empty after delete | uploaded item removed | **PASS** |
+| 8 | Ability merged file list shows ticket-uploaded file with `sourceType=ticket` and `ticketTitle` | 200 + merged row present | **PASS** |
+| 9 | Upload `.png` to ability via /api/abilities/[id]/files | 201 + created item | **PASS** |
+| 10 | Download uploaded ability file via /api/files/[id]/download | 200 + non-empty file | **PASS** |
+| 11 | Delete uploaded ability file via /api/files/[id] | 200 + id | **PASS** |
+| 12 | Ability merged file list final state remains accessible after cleanup | 200 + items array | **PASS** |
+| 13 | Static validation: targeted lint | Exit code 0 | **PASS** |
+| 14 | Static validation: npm run build | Exit code 0 | **PASS** |
+
+### Notes
+- ระหว่าง QA พบ defect จริงที่ `DELETE /api/files/[id]` ตอบ `500` ด้วยข้อความ `Failed to delete file: dbQuery is not defined`
+- สาเหตุคือไฟล์ [src/app/api/files/[id]/route.js](/home/sipparush/MyTraining/project-management/src/app/api/files/[id]/route.js) ขาด import `dbQuery`
+- หลังแก้ import และ rerun endpoint เดียวกัน ผลลัพธ์กลับเป็น `200` ทั้ง ticket file และ ability file delete flows
+- ไฟล์ทดสอบที่ดาวน์โหลดได้มีขนาดไม่เป็นศูนย์: ticket `23 bytes`, ability `68 bytes`
+
+### Conclusion
+**PASS** หลังแก้ defect 1 จุดใน route ลบไฟล์ และ rerun QA สำเร็จครบ flow

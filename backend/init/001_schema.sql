@@ -82,6 +82,19 @@ CREATE TABLE IF NOT EXISTS ability_files (
   deleted_at TIMESTAMPTZ
 );
 
+CREATE TABLE IF NOT EXISTS ticket_files (
+  id UUID PRIMARY KEY,
+  ticket_id UUID REFERENCES tickets(id) ON DELETE CASCADE,
+  ability_id UUID REFERENCES abilities(id) ON DELETE SET NULL,
+  uploader_user_id UUID,
+  original_name TEXT NOT NULL,
+  stored_name TEXT NOT NULL UNIQUE,
+  mime_type TEXT,
+  size_bytes INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
@@ -133,6 +146,7 @@ ALTER TABLE abilities ADD CONSTRAINT abilities_assign_to_fk FOREIGN KEY (assign_
 ALTER TABLE tickets ADD CONSTRAINT tickets_owner_fk FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE tickets ADD CONSTRAINT tickets_assign_to_fk FOREIGN KEY (assign_to_user_id) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE ability_files ADD CONSTRAINT ability_files_uploader_fk FOREIGN KEY (uploader_user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE ticket_files ADD CONSTRAINT ticket_files_uploader_fk FOREIGN KEY (uploader_user_id) REFERENCES users(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_projects_goal_id ON projects(goal_id);
 CREATE INDEX IF NOT EXISTS idx_abilities_project_id ON abilities(project_id);
@@ -153,6 +167,9 @@ CREATE INDEX IF NOT EXISTS idx_ability_files_ability_id ON ability_files(ability
 CREATE INDEX IF NOT EXISTS idx_ability_files_project_id ON ability_files(project_id);
 CREATE INDEX IF NOT EXISTS idx_ability_files_deleted_at ON ability_files(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_ability_files_orphaned_at ON ability_files(orphaned_at);
+CREATE INDEX IF NOT EXISTS idx_ticket_files_ticket_id ON ticket_files(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_files_ability_id ON ticket_files(ability_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_files_deleted_at ON ticket_files(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_roles_role_name ON user_roles(role_name);
 CREATE INDEX IF NOT EXISTS idx_role_permissions_role_name ON role_permissions(role_name);

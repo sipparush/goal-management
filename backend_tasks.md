@@ -131,3 +131,13 @@ In Progress - No backend changes required, pending regression verification
 
 ## Status (Request 19)
 In Progress - Implemented, pending regression verification
+
+## Request 23 (/devwork): Ticket Files Schema/API
+- [x] เพิ่ม schema/table `ticket_files` และ indexes ที่เกี่ยวข้อง
+- [x] เพิ่ม API `GET/POST /api/tickets/[id]/files`
+- [x] ปรับ download/delete flow ให้รองรับทั้ง ability files และ ticket files
+- [x] ปรับ API ability files ให้รวม ticket files ภายใต้ ability เดียวกัน
+- [x] ทดสอบ syntax/regression ของ routes และ schema bootstrap
+
+## Status (Request 23)
+Completed - Runtime QA passed after fixing delete route regression

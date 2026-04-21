@@ -136,3 +136,14 @@ In Progress - Waiting for QA execution results
 
 ## Status (Request 19)
 In Progress - Waiting for QA execution results
+
+## /qawork - Request 23
+- [x] ทดสอบ upload `.xlsx` และ image ที่หน้า Ticket ระหว่าง edit ticket
+- [x] ทดสอบ download/delete ticket files และ permission boundary
+- [x] ทดสอบหน้า Ability merged file list ว่าแสดง ability files + ticket files ครบ
+- [x] ทดสอบ regression ของ ability file flow เดิมหลังรวม list
+- [x] รัน static validation (`npm run lint` เฉพาะไฟล์ที่แก้, `npm run build`)
+- [x] รัน startup smoke ด้วย `npm run dev`
+
+## Status (Request 23)
+Completed - QA passed after fixing delete route regression (`dbQuery is not defined`)

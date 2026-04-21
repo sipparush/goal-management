@@ -32,6 +32,9 @@ export default function TicketManagementPage() {
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [abilityFilter, setAbilityFilter] = useState("all");
+    const [ticketFiles, setTicketFiles] = useState([]);
+    const [loadingFiles, setLoadingFiles] = useState(false);
+    const [uploadFile, setUploadFile] = useState(null);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
@@ -63,7 +66,6 @@ export default function TicketManagementPage() {
                 abilityId: abilityFilter,
             });
             const data = await requestJson(`/api/tickets?${params.toString()}`);
-            console.log({ data });
             setTickets(data.items || []);
         } catch (loadError) {
             setError(loadError.message);
@@ -71,6 +73,20 @@ export default function TicketManagementPage() {
             setLoading(false);
         }
     }, [search, statusFilter, abilityFilter, state.user]);
+
+    const loadTicketFiles = useCallback(async (ticketId) => {
+        setLoadingFiles(true);
+        try {
+            setError("");
+            const data = await requestJson(`/api/tickets/${ticketId}/files`);
+            setTicketFiles(data.items || []);
+        } catch (loadError) {
+            setError(loadError.message);
+            setTicketFiles([]);
+        } finally {
+            setLoadingFiles(false);
+        }
+    }, []);
 
     useEffect(() => {
         loadLookup();
@@ -87,6 +103,8 @@ export default function TicketManagementPage() {
     const resetForm = () => {
         setForm(initialForm);
         setEditingId("");
+        setTicketFiles([]);
+        setUploadFile(null);
     };
 
     const onSubmit = async (event) => {
@@ -135,7 +153,7 @@ export default function TicketManagementPage() {
         }
     };
 
-    const onEdit = (ticket) => {
+    const onEdit = async (ticket) => {
         if (!canEditTicket) {
             return;
         }
@@ -149,6 +167,8 @@ export default function TicketManagementPage() {
             startDate: ticket.startDate,
             endDate: ticket.endDate,
         });
+        setUploadFile(null);
+        await loadTicketFiles(ticket.id);
     };
 
     const onDelete = async (id) => {
@@ -200,6 +220,47 @@ export default function TicketManagementPage() {
             status: item.status,
         }));
         downloadCsv("tickets.csv", rows);
+    };
+
+    const onDeleteFile = async (fileId) => {
+        if (!canEditTicket) {
+            setError("forbidden");
+            return;
+        }
+
+        try {
+            setError("");
+            await requestJson(`/api/files/${fileId}`, { method: "DELETE" });
+            await loadTicketFiles(editingId);
+        } catch (deleteFileError) {
+            setError(deleteFileError.message);
+        }
+    };
+
+    const onUploadTicketFile = async () => {
+        if (!canEditTicket) {
+            setError("forbidden");
+            return;
+        }
+
+        if (!editingId || !uploadFile) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", uploadFile);
+
+        try {
+            setError("");
+            await requestJson(`/api/tickets/${editingId}/files`, {
+                method: "POST",
+                body: formData,
+            });
+            setUploadFile(null);
+            await loadTicketFiles(editingId);
+        } catch (uploadError) {
+            setError(uploadError.message);
+        }
     };
 
     return (
@@ -258,6 +319,72 @@ export default function TicketManagementPage() {
                             </button>
                         ) : null}
                     </form>
+                ) : null}
+
+                {editingId ? (
+                    <section className="stack">
+                        <h3>Ticket Files: {form.title || editingId}</h3>
+                        <div className="toolbar">
+                            <label>
+                                Upload Detail File (.xlsx / image {"<="} 10MB)
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.jpg,.jpeg,.png,.gif,.webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/*"
+                                    onChange={(event) =>
+                                        setUploadFile(event.target.files && event.target.files[0] ? event.target.files[0] : null)
+                                    }
+                                />
+                            </label>
+                            <button type="button" onClick={onUploadTicketFile} disabled={!uploadFile || !canEditTicket}>
+                                Upload Ticket File
+                            </button>
+                            <button type="button" className="btn-secondary" onClick={() => loadTicketFiles(editingId)}>
+                                Refresh Files
+                            </button>
+                        </div>
+                        <div className="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>File Name</th>
+                                        <th>Size (bytes)</th>
+                                        <th>Uploaded At</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {loadingFiles ? (
+                                        <tr>
+                                            <td colSpan={4}>กำลังโหลดรายการไฟล์...</td>
+                                        </tr>
+                                    ) : ticketFiles.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4}>ยังไม่มีไฟล์แนบของ Ticket นี้</td>
+                                        </tr>
+                                    ) : (
+                                        ticketFiles.map((file) => (
+                                            <tr key={file.id}>
+                                                <td>
+                                                    <a href={file.downloadUrl}>{file.originalName}</a>
+                                                </td>
+                                                <td>{file.sizeBytes}</td>
+                                                <td>{new Date(file.createdAt).toLocaleString("th-TH")}</td>
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-danger"
+                                                        onClick={() => onDeleteFile(file.id)}
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                 ) : null}
 
                 <section className="toolbar">

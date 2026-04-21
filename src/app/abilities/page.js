@@ -22,6 +22,7 @@ export default function AbilityManagementPage() {
     const canAddAbility = hasPermission(state.user, PERMISSIONS.abilitiesAdd);
     const canEditAbility = hasPermission(state.user, PERMISSIONS.abilitiesEdit);
     const canDeleteAbility = hasPermission(state.user, PERMISSIONS.abilitiesDelete);
+    const canEditTicket = hasPermission(state.user, PERMISSIONS.ticketsEdit);
     const [form, setForm] = useState(initialForm);
     const [abilities, setAbilities] = useState([]);
     const [projects, setProjects] = useState([]);
@@ -365,38 +366,44 @@ export default function AbilityManagementPage() {
                             <table>
                                 <thead>
                                     <tr>
+                                        <th>Source</th>
+                                        <th>Ticket</th>
                                         <th>File Name</th>
                                         <th>Size (bytes)</th>
                                         <th>Uploaded At</th>
-                                        {canEditAbility ? <th>Actions</th> : null}
+                                        {canEditAbility || canEditTicket ? <th>Actions</th> : null}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {loadingFiles ? (
                                         <tr>
-                                            <td colSpan={canEditAbility ? 4 : 3}>กำลังโหลดรายการไฟล์...</td>
+                                            <td colSpan={canEditAbility || canEditTicket ? 6 : 5}>กำลังโหลดรายการไฟล์...</td>
                                         </tr>
                                     ) : abilityFiles.length === 0 ? (
                                         <tr>
-                                            <td colSpan={canEditAbility ? 4 : 3}>ยังไม่มีไฟล์</td>
+                                            <td colSpan={canEditAbility || canEditTicket ? 6 : 5}>ยังไม่มีไฟล์</td>
                                         </tr>
                                     ) : (
                                         abilityFiles.map((file) => (
                                             <tr key={file.id}>
+                                                <td>{file.sourceType === "ticket" ? "Ticket" : "Ability"}</td>
+                                                <td>{file.ticketTitle || "-"}</td>
                                                 <td>
                                                     <a href={file.downloadUrl}>{file.originalName}</a>
                                                 </td>
                                                 <td>{file.sizeBytes}</td>
                                                 <td>{new Date(file.createdAt).toLocaleString("th-TH")}</td>
-                                                {canEditAbility ? (
+                                                {canEditAbility || canEditTicket ? (
                                                     <td>
-                                                        <button
-                                                            type="button"
-                                                            className="btn-danger"
-                                                            onClick={() => onDeleteFile(file.id)}
-                                                        >
-                                                            Delete
-                                                        </button>
+                                                        {(file.sourceType === "ticket" ? canEditTicket : canEditAbility) ? (
+                                                            <button
+                                                                type="button"
+                                                                className="btn-danger"
+                                                                onClick={() => onDeleteFile(file.id)}
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        ) : null}
                                                     </td>
                                                 ) : null}
                                             </tr>

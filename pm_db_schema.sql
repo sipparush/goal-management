@@ -65,6 +65,26 @@ CREATE TABLE public.ability_files (
 ALTER TABLE public.ability_files OWNER TO pm_user;
 
 --
+-- Name: ticket_files; Type: TABLE; Schema: public; Owner: pm_user
+--
+
+CREATE TABLE public.ticket_files (
+    id uuid NOT NULL,
+    ticket_id uuid,
+    ability_id uuid,
+    uploader_user_id uuid,
+    original_name text NOT NULL,
+    stored_name text NOT NULL,
+    mime_type text,
+    size_bytes integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
+);
+
+
+ALTER TABLE public.ticket_files OWNER TO pm_user;
+
+--
 -- Name: action_plan_rows; Type: TABLE; Schema: public; Owner: pm_user
 --
 
@@ -256,6 +276,22 @@ ALTER TABLE ONLY public.ability_files
 
 
 --
+-- Name: ticket_files ticket_files_pkey; Type: CONSTRAINT; Schema: public; Owner: pm_user
+--
+
+ALTER TABLE ONLY public.ticket_files
+    ADD CONSTRAINT ticket_files_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ticket_files ticket_files_stored_name_key; Type: CONSTRAINT; Schema: public; Owner: pm_user
+--
+
+ALTER TABLE ONLY public.ticket_files
+    ADD CONSTRAINT ticket_files_stored_name_key UNIQUE (stored_name);
+
+
+--
 -- Name: action_plan_rows action_plan_rows_pkey; Type: CONSTRAINT; Schema: public; Owner: pm_user
 --
 
@@ -397,6 +433,27 @@ CREATE INDEX idx_ability_files_orphaned_at ON public.ability_files USING btree (
 --
 
 CREATE INDEX idx_ability_files_project_id ON public.ability_files USING btree (project_id);
+
+
+--
+-- Name: idx_ticket_files_ability_id; Type: INDEX; Schema: public; Owner: pm_user
+--
+
+CREATE INDEX idx_ticket_files_ability_id ON public.ticket_files USING btree (ability_id);
+
+
+--
+-- Name: idx_ticket_files_deleted_at; Type: INDEX; Schema: public; Owner: pm_user
+--
+
+CREATE INDEX idx_ticket_files_deleted_at ON public.ticket_files USING btree (deleted_at);
+
+
+--
+-- Name: idx_ticket_files_ticket_id; Type: INDEX; Schema: public; Owner: pm_user
+--
+
+CREATE INDEX idx_ticket_files_ticket_id ON public.ticket_files USING btree (ticket_id);
 
 
 --
@@ -543,6 +600,30 @@ ALTER TABLE ONLY public.ability_files
 
 ALTER TABLE ONLY public.ability_files
     ADD CONSTRAINT ability_files_uploader_fk FOREIGN KEY (uploader_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: ticket_files ticket_files_ability_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: pm_user
+--
+
+ALTER TABLE ONLY public.ticket_files
+    ADD CONSTRAINT ticket_files_ability_id_fkey FOREIGN KEY (ability_id) REFERENCES public.abilities(id) ON DELETE SET NULL;
+
+
+--
+-- Name: ticket_files ticket_files_ticket_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: pm_user
+--
+
+ALTER TABLE ONLY public.ticket_files
+    ADD CONSTRAINT ticket_files_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(id) ON DELETE CASCADE;
+
+
+--
+-- Name: ticket_files ticket_files_uploader_fk; Type: FK CONSTRAINT; Schema: public; Owner: pm_user
+--
+
+ALTER TABLE ONLY public.ticket_files
+    ADD CONSTRAINT ticket_files_uploader_fk FOREIGN KEY (uploader_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --

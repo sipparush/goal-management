@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { dbQuery } from "@/lib/db";
 import { ok, fail } from "@/lib/api-response";
-import { hasEffectivePermission, isAdmin, requireAuth } from "@/lib/auth-server";
+import { hasEffectivePermission, requireAuth } from "@/lib/auth-server";
 import { PERMISSIONS } from "@/lib/roles";
 import {
     buildStoredName,
@@ -9,31 +9,7 @@ import {
     saveFormFileToDisk,
     validateUploadFile,
 } from "@/lib/file-storage";
-
-function mapFileRow(row) {
-    return {
-        id: row.id,
-        abilityId: row.ability_id,
-        projectId: row.project_id,
-        originalName: row.original_name,
-        mimeType: row.mime_type || "text/csv",
-        sizeBytes: row.size_bytes,
-        createdAt: row.created_at,
-        downloadUrl: `/api/files/${row.id}/download`,
-    };
-}
-
-async function getAbilityForUser(abilityId, user) {
-    const result = isAdmin(user)
-        ? await dbQuery("SELECT id, project_id FROM abilities WHERE id = $1", [abilityId])
-        : await dbQuery("SELECT id, project_id FROM abilities WHERE id = $1 AND (owner_user_id = $2 OR assign_to_user_id = $2)", [abilityId, user.id]);
-
-    if (result.rowCount === 0) {
-        return null;
-    }
-
-    return result.rows[0];
-}
+import { getAbilityForUser, mapManagedFileRow } from "@/lib/file-records";
 
 export async function GET(request, { params }) {
     try {
@@ -54,16 +30,49 @@ export async function GET(request, { params }) {
             return fail("ability not found", 404);
         }
 
-        const result = await dbQuery(
-            `SELECT *
-             FROM ability_files
-             WHERE ability_id = $1
-               AND deleted_at IS NULL
-             ORDER BY created_at DESC`,
-            [id],
-        );
+                const result = await dbQuery(
+                        `SELECT *
+                         FROM (
+                                 SELECT af.id,
+                                                'ability'::text AS source_type,
+                                                af.ability_id,
+                                                af.project_id,
+                                                NULL::uuid AS ticket_id,
+                                                NULL::text AS ticket_title,
+                                                a.name AS ability_name,
+                                                af.original_name,
+                                                af.mime_type,
+                                                af.size_bytes,
+                                                af.created_at
+                                 FROM ability_files af
+                                 LEFT JOIN abilities a ON a.id = af.ability_id
+                                 WHERE af.ability_id = $1
+                                     AND af.deleted_at IS NULL
 
-        return ok({ items: result.rows.map(mapFileRow) });
+                                 UNION ALL
+
+                                 SELECT tf.id,
+                                                'ticket'::text AS source_type,
+                                                tf.ability_id,
+                                                a.project_id,
+                                                tf.ticket_id,
+                                                t.title AS ticket_title,
+                                                a.name AS ability_name,
+                                                tf.original_name,
+                                                tf.mime_type,
+                                                tf.size_bytes,
+                                                tf.created_at
+                                 FROM ticket_files tf
+                                 JOIN tickets t ON t.id = tf.ticket_id
+                                 LEFT JOIN abilities a ON a.id = tf.ability_id
+                                 WHERE tf.ability_id = $1
+                                     AND tf.deleted_at IS NULL
+                         ) files
+                         ORDER BY created_at DESC`,
+                        [id],
+                );
+
+                return ok({ items: result.rows.map(mapManagedFileRow) });
     } catch (error) {
         return fail(`Failed to list ability files: ${error.message}`, 500);
     }
@@ -115,7 +124,7 @@ export async function POST(request, { params }) {
             ],
         );
 
-        return ok({ item: mapFileRow(insertResult.rows[0]) }, 201);
+        return ok({ item: mapManagedFileRow({ ...insertResult.rows[0], source_type: "ability", ticket_id: null, ticket_title: null, ability_name: null }) }, 201);
     } catch (error) {
         return fail(`Failed to upload ability file: ${error.message}`, 500);
     }

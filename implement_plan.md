@@ -171,6 +171,22 @@ Docker และ PostgreSQL ทำงานได้แล้ว, API health ผ
 ## Current Status (Request 20)
 รอดำเนินการ: ปรับ Rollback plan section ให้สามารถ drag & drop, Edit, Delete ได้เหมือน Action Plan Rows
 
+23. /devwork: เพิ่ม ticket file management แบบ table แยก `ticket_files` และรวม file list ในหน้า Ability
+
+## Request 23 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์ requirement และยืนยันใช้ table แยก `ticket_files`
+- [x] รออนุมัติแผนก่อนเริ่มพัฒนา
+- [x] เพิ่ม schema และ storage flow สำหรับ ticket files
+- [x] เพิ่ม API upload/list/download/delete สำหรับ ticket files
+- [x] ปรับหน้า Ticket ให้แก้ไขและจัดการไฟล์แนบได้
+- [x] ปรับหน้า Ability ให้รวม ability files และ ticket files ใน list เดียว
+- [x] ทดสอบเชิงโค้ด (lint/build) และอัปเดตเอกสารสถานะ
+- [x] ทำ /qawork สำหรับ Ticket/Ability file flow และแก้ defect ที่พบ
+
+## Current Status (Request 23)
+เสร็จสิ้น: เพิ่ม `ticket_files`, API upload/list/download/delete สำหรับ ticket files, หน้า Ticket จัดการไฟล์แนบได้ระหว่าง edit, หน้า Ability แสดง merged file list จาก ability/ticket แล้ว และ /qawork ผ่านหลังแก้ defect `DELETE /api/files/[id]` ที่ขาด import `dbQuery`
+
 10. /bawork: เพิ่มปุ่ม Delete User, ทบทวนการคุมสิทธิ์การมองเห็นข้อมูลตาม owner, และเพิ่มปุ่ม Import CSV เพื่อสร้าง Action Plan Rows
 
 ## Request 10 Checklist Status

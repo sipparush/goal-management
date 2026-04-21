@@ -1,19 +1,7 @@
-import { dbQuery } from "@/lib/db";
 import { fail } from "@/lib/api-response";
 import { isAdmin, isManager, isStaff, requireAuth } from "@/lib/auth-server";
 import { readStoredFile } from "@/lib/file-storage";
-
-function canOwnerAccessFileRow(fileRow, userId) {
-    if (fileRow.ability_owner_user_id && fileRow.ability_owner_user_id === userId) {
-        return true;
-    }
-
-    if (fileRow.project_owner_user_id && fileRow.project_owner_user_id === userId) {
-        return true;
-    }
-
-    return false;
-}
+import { canAccessManagedFile, getManagedFileById } from "@/lib/file-records";
 
 export async function GET(request, { params }) {
     try {
@@ -27,23 +15,12 @@ export async function GET(request, { params }) {
         }
 
         const { id } = await params;
-        const result = await dbQuery(
-            `SELECT af.*, a.owner_user_id AS ability_owner_user_id, p.owner_user_id AS project_owner_user_id
-             FROM ability_files af
-             LEFT JOIN abilities a ON a.id = af.ability_id
-             LEFT JOIN projects p ON p.id = af.project_id
-             WHERE af.id = $1
-               AND af.deleted_at IS NULL`,
-            [id],
-        );
-
-        if (result.rowCount === 0) {
+        const fileRow = await getManagedFileById(id);
+        if (!fileRow) {
             return fail("file not found", 404);
         }
 
-        const fileRow = result.rows[0];
-
-        if (!isAdmin(auth.user) && !canOwnerAccessFileRow(fileRow, auth.user.id)) {
+        if (!canAccessManagedFile(fileRow, auth.user)) {
             return fail("file not found", 404);
         }
 

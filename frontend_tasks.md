@@ -50,6 +50,15 @@ Completed
 
 ## Status (Request 20)
 Planned - Awaiting implementation
+
+## Request 23 (/devwork): Ticket File Management + Ability Merged File List
+- [x] เพิ่ม UI หน้า Ticket สำหรับ list/upload/download/delete ticket files ระหว่าง edit ticket
+- [x] ล้าง state file panel เมื่อ cancel edit หรือสลับ ticket
+- [x] ปรับหน้า Ability file panel ให้แสดง merged list พร้อม source/ticket context
+- [x] ตรวจ syntax/build ของ UX flow ที่เพิ่ม
+
+## Status (Request 23)
+Completed - Runtime QA passed
 ## Request 9 (/sawork): Clarify Role Change Flow on Frontend
 - [x] วิเคราะห์ flow ปัจจุบันหน้า `/users` สำหรับการเปลี่ยน role
 - [x] ระบุ UX ปัจจุบัน: คลิกข้อความ role ในคอลัมน์ Role เพื่อเปิด dropdown
