@@ -63,6 +63,7 @@ export default function TicketManagementPage() {
                 abilityId: abilityFilter,
             });
             const data = await requestJson(`/api/tickets?${params.toString()}`);
+            console.log({ data });
             setTickets(data.items || []);
         } catch (loadError) {
             setError(loadError.message);

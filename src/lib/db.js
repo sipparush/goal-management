@@ -109,10 +109,19 @@ async function ensureSchema() {
         await runRawQuery("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS owner_user_id UUID REFERENCES users(id)");
         await runRawQuery("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS assign_to_user_id UUID REFERENCES users(id) ON DELETE SET NULL");
         await runRawQuery("ALTER TABLE abilities ALTER COLUMN project_id DROP NOT NULL");
-        await runRawQuery("ALTER TABLE abilities DROP CONSTRAINT IF EXISTS abilities_project_id_fkey");
-        await runRawQuery(
-            "ALTER TABLE abilities ADD CONSTRAINT abilities_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL",
-        );
+        await runRawQuery(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'abilities_project_id_fkey'
+                      AND conrelid = 'abilities'::regclass
+                ) THEN
+                    ALTER TABLE abilities ADD CONSTRAINT abilities_project_id_fkey
+                        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL;
+                END IF;
+            END $$
+        `);
 
         await runRawQuery(`
             CREATE TABLE IF NOT EXISTS action_plan_rows (
