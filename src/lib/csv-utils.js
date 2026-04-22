@@ -57,6 +57,7 @@ export function parseCsv(text) {
 
 export function normalizeHeader(header) {
     return String(header || "")
+    .replace(/^\uFEFF/, "")
         .trim()
         .toLowerCase()
         .replace(/\s+/g, "")

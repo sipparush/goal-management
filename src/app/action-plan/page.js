@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import RoleGate from "@/components/RoleGate";
 import { useAppData } from "@/context/AppDataContext";
@@ -72,6 +72,7 @@ function ActionPlanPageInner() {
     const { state } = useAppData();
     const searchParams = useSearchParams();
     const ticketId = searchParams.get("ticketId") || "";
+    const importInputRef = useRef(null);
     const canAddActionPlan = hasPermission(state.user, PERMISSIONS.actionPlansAdd);
     const canEditActionPlan = hasPermission(state.user, PERMISSIONS.actionPlansEdit);
     const canDeleteActionPlan = hasPermission(state.user, PERMISSIONS.actionPlansDelete);
@@ -170,6 +171,14 @@ function ActionPlanPageInner() {
     const resetForm = () => {
         setForm(initialForm);
         setEditingId("");
+    };
+
+    const resetImportSelection = () => {
+        setImportFile(null);
+
+        if (importInputRef.current) {
+            importInputRef.current.value = "";
+        }
     };
 
     const onSubmit = async (event) => {
@@ -301,11 +310,12 @@ function ActionPlanPageInner() {
             });
 
             setImportResult(result);
-            setImportFile(null);
             await reloadRows(selectedTicketId);
             setMessage("นำเข้า CSV เสร็จสิ้น");
         } catch (importError) {
             setError(importError.message);
+        } finally {
+            resetImportSelection();
         }
     };
 
@@ -437,6 +447,7 @@ function ActionPlanPageInner() {
                         <label>
                             CSV File (phase, No, action, status, duration, start, end, remark)
                             <input
+                                ref={importInputRef}
                                 type="file"
                                 accept=".csv,text/csv"
                                 onChange={(event) =>

@@ -187,6 +187,28 @@ Docker และ PostgreSQL ทำงานได้แล้ว, API health ผ
 ## Current Status (Request 23)
 เสร็จสิ้น: เพิ่ม `ticket_files`, API upload/list/download/delete สำหรับ ticket files, หน้า Ticket จัดการไฟล์แนบได้ระหว่าง edit, หน้า Ability แสดง merged file list จาก ability/ticket แล้ว และ /qawork ผ่านหลังแก้ defect `DELETE /api/files/[id]` ที่ขาด import `dbQuery`
 
+24. /devwork: แก้ปัญหา Action Plan CSV import ค้างไฟล์เดิมเมื่อ re-import ด้วยชื่อไฟล์ซ้ำหลัง import fail
+
+## Request 24 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์สาเหตุของ file input และ import state
+- [x] ปรับหน้า Action Plan ให้ reset file input/state หลัง import ทุกกรณี
+- [x] ทดสอบการทำงานและอัปเดตเอกสารสถานะ
+
+## Current Status (Request 24)
+เสร็จสิ้น: หน้า Action Plan reset ทั้ง import state และ native file input หลัง import success/fail ทำให้ re-import ไฟล์ใหม่ที่ใช้ชื่อเดิมไม่ค้าง File object เดิม และระบบ start ได้ปกติ
+
+25. /devwork: แก้ปัญหา Action Plan CSV import แจ้ง `missing required column: phase` แม้ไฟล์มี header ถูกต้อง
+
+## Request 25 Checklist Status
+- [x] รับคำขอและบันทึกลงแผน
+- [x] วิเคราะห์สาเหตุของ CSV header parsing
+- [ ] ปรับตัว normalize header ให้รองรับ BOM/format จากไฟล์ export ทั่วไป
+- [ ] ทดสอบการทำงานและอัปเดตเอกสารสถานะ
+
+## Current Status (Request 25)
+กำลังดำเนินการ: แก้ utility parse CSV เพื่อให้ header `phase` ถูกตรวจพบแม้ไฟล์มี BOM นำหน้า
+
 10. /bawork: เพิ่มปุ่ม Delete User, ทบทวนการคุมสิทธิ์การมองเห็นข้อมูลตาม owner, และเพิ่มปุ่ม Import CSV เพื่อสร้าง Action Plan Rows
 
 ## Request 10 Checklist Status
