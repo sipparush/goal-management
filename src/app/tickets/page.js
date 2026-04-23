@@ -335,7 +335,7 @@ export default function TicketManagementPage() {
                                     }
                                 />
                             </label>
-                            <button type="button" onClick={onUploadTicketFile} disabled={!uploadFile || !canEditTicket}>
+                            <button type="button" className="btn-primary" onClick={onUploadTicketFile} disabled={!uploadFile || !canEditTicket}>
                                 Upload Ticket File
                             </button>
                             <button type="button" className="btn-secondary" onClick={() => loadTicketFiles(editingId)}>

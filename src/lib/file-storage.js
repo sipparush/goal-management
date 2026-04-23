@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { dbQuery } from "@/lib/db";
 
 export const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
-export const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".jpg", ".jpeg", ".png", ".gif", ".webp"];
+export const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".md", ".json"];
 
 const UPLOAD_ROOT = path.join(process.cwd(), "uploads", "ability-results");
 
